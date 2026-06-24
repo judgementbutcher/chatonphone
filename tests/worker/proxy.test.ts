@@ -84,6 +84,16 @@ describe('handleProxyRequest', () => {
     }));
   });
 
+  it('normalizes root and full endpoint target base urls', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+
+    await handleProxyRequest(createChatRequest({ 'X-Target-Base-URL': 'https://gateway.example.com' }), fetchImpl);
+    await handleProxyRequest(createChatRequest({ 'X-Target-Base-URL': 'https://gateway.example.com/v1/chat/completions' }), fetchImpl);
+
+    expect(fetchImpl.mock.calls[0][0]).toBe('https://gateway.example.com/v1/chat/completions');
+    expect(fetchImpl.mock.calls[1][0]).toBe('https://gateway.example.com/v1/chat/completions');
+  });
+
   it('forwards model list requests to the target base url', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'gpt-4o-mini' }] }), { status: 200 }));
     const request = new Request('https://proxy.example.com/v1/models', {

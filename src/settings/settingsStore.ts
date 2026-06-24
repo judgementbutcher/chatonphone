@@ -19,6 +19,7 @@ export const defaultSettings: AppSettings = {
   apiBaseUrl: '',
   apiKey: '',
   model: '',
+  chatModel: '',
   temperature: 0.7,
   maxTokens: 2048,
   stream: true,
@@ -46,7 +47,14 @@ function stringSetting(value: unknown, fallback: string): string {
 }
 
 function numberSetting(value: unknown, fallback: number, isValid: (value: number) => boolean): number {
-  return typeof value === 'number' && Number.isFinite(value) && isValid(value) ? value : fallback;
+  const numberValue =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim().length > 0
+        ? Number(value)
+        : Number.NaN;
+
+  return Number.isFinite(numberValue) && isValid(numberValue) ? numberValue : fallback;
 }
 
 function booleanSetting(value: unknown, fallback: boolean): boolean {
@@ -88,7 +96,10 @@ function modelListSetting(value: unknown, selectedModel: string): string[] {
 }
 
 function legacyProviderFrom(value: Record<string, unknown>): ProviderSettings {
-  const selectedModel = nonEmptyString(value.selectedModel) ?? stringSetting(value.model, defaultSettings.model);
+  const selectedModel =
+    nonEmptyString(value.selectedModel) ??
+    nonEmptyString(value.chatModel) ??
+    stringSetting(value.model, defaultSettings.model);
 
   return {
     id: DEFAULT_PROVIDER_ID,
@@ -146,7 +157,7 @@ function providersSetting(value: unknown): ProviderSettings[] {
 }
 
 function hasLegacyConnectionValues(value: Record<string, unknown>): boolean {
-  return [value.apiBaseUrl, value.apiKey, value.model, value.proxyUrl, value.proxyAccessToken].some(
+  return [value.apiBaseUrl, value.apiKey, value.model, value.chatModel, value.proxyUrl, value.proxyAccessToken].some(
     (field) => typeof field === 'string' && field.trim().length > 0
   );
 }
@@ -171,13 +182,27 @@ function normalizeSettings(settings: AppSettings): AppSettings {
       ? [legacyProvider]
       : settings.providers;
   const activeProvider = providers.find((provider) => provider.id === settings.selectedProviderId) ?? providers[0] ?? defaultProvider;
-  const selectedModel = settings.selectedModel || activeProvider.models[0] || settings.model;
+  const selectedModel =
+    nonEmptyString(settings.selectedModel) ??
+    nonEmptyString(settings.model) ??
+    nonEmptyString(activeProvider.models[0]) ??
+    defaultSettings.selectedModel!;
+  const chatModel =
+    nonEmptyString(settings.chatModel) ??
+    selectedModel ??
+    nonEmptyString(settings.model) ??
+    '';
+  const model = chatModel || selectedModel;
 
   return {
     ...settings,
     apiBaseUrl: activeProvider.apiBaseUrl,
     apiKey: activeProvider.apiKey,
-    model: settings.model || selectedModel, // 保持对话界面选择的模型
+    model,
+    chatModel: model,
+    temperature: numberSetting(settings.temperature, defaultSettings.temperature, (temperature) => temperature >= 0 && temperature <= 2),
+    maxTokens: numberSetting(settings.maxTokens, defaultSettings.maxTokens, (maxTokens) => maxTokens > 0 && maxTokens <= 1000000),
+    stream: booleanSetting(settings.stream, defaultSettings.stream),
     requestMode: activeProvider.requestMode,
     proxyUrl: activeProvider.proxyUrl,
     proxyAccessToken: activeProvider.proxyAccessToken,
@@ -201,12 +226,22 @@ function sanitizeSettings(value: unknown): AppSettings {
   const providers = shouldUseLegacyProvider ? [legacyProvider] : persistedProviders;
   const selectedProviderId = stringSetting(value.selectedProviderId, providers[0]?.id ?? DEFAULT_PROVIDER_ID);
   const activeProvider = providers.find((provider) => provider.id === selectedProviderId) ?? providers[0] ?? defaultProvider;
-  const selectedModel = nonEmptyString(value.selectedModel) ?? stringSetting(value.model, activeProvider.models[0] ?? defaultSettings.model);
+  const selectedModel =
+    nonEmptyString(value.selectedModel) ??
+    nonEmptyString(value.model) ??
+    nonEmptyString(activeProvider.models[0]) ??
+    defaultSettings.model;
+  const chatModel =
+    nonEmptyString(value.chatModel) ??
+    selectedModel ??
+    nonEmptyString(value.model) ??
+    '';
 
   return normalizeSettings({
     apiBaseUrl: activeProvider.apiBaseUrl,
     apiKey: activeProvider.apiKey,
-    model: selectedModel,
+    model: chatModel,
+    chatModel,
     temperature: numberSetting(value.temperature, defaultSettings.temperature, (temperature) => temperature >= 0 && temperature <= 2),
     maxTokens: numberSetting(value.maxTokens, defaultSettings.maxTokens, (maxTokens) => maxTokens > 0 && maxTokens <= 1000000),
     stream: booleanSetting(value.stream, defaultSettings.stream),

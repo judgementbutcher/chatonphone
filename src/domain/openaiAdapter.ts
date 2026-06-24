@@ -37,22 +37,15 @@ function toOpenAIMessage(message: ChatMessage): OpenAIMessage {
       continue;
     }
 
-    // 确保图片有 dataUrl
     if (!attachment.dataUrl) {
-      console.warn('图片缺少 dataUrl:', attachment);
       continue;
     }
-
-    console.log('添加图片到请求:', {
-      name: attachment.name,
-      dataUrlLength: attachment.dataUrl.length,
-      dataUrlPrefix: attachment.dataUrl.substring(0, 50)
-    });
 
     content.push({
       type: 'image_url',
       image_url: {
-        url: attachment.dataUrl
+        url: attachment.dataUrl,
+        detail: 'auto'
       }
     });
   }
@@ -65,32 +58,13 @@ function toOpenAIMessage(message: ChatMessage): OpenAIMessage {
 
 export function toOpenAIChatRequest(messages: ChatMessage[], settings: AppSettings): OpenAIChatRequest {
   const activeSettings = getActiveProviderSettings(settings);
-
-  // 使用 chatModel（对话界面选择的），如果没有则使用 model
-  const modelToUse = settings.chatModel || activeSettings.model;
-
   const openaiMessages = messages.map(toOpenAIMessage);
 
-  // 调试日志：检查是否有图片消息
-  const hasImages = openaiMessages.some((msg) =>
-    Array.isArray(msg.content) && msg.content.some((part: any) => part.type === 'image_url')
-  );
-
-  if (hasImages) {
-    console.log('🖼️ 请求中包含图片:', {
-      messagesCount: openaiMessages.length,
-      model: modelToUse,
-      imageMessages: openaiMessages.filter((msg) =>
-        Array.isArray(msg.content) && msg.content.some((part: any) => part.type === 'image_url')
-      ).length
-    });
-  }
-
   return {
-    model: modelToUse,
-    temperature: settings.temperature,
-    max_tokens: settings.maxTokens,
-    stream: settings.stream,
+    model: activeSettings.chatModel || activeSettings.model,
+    temperature: activeSettings.temperature,
+    max_tokens: activeSettings.maxTokens,
+    stream: activeSettings.stream,
     messages: openaiMessages
   };
 }

@@ -57,6 +57,8 @@ describe('settings sync client', () => {
     expect(body.settings.maxTokens).toBeUndefined();
     expect(body.settings.stream).toBeUndefined();
     expect(body.settings.darkMode).toBeUndefined();
+    expect(body.settings.model).toBeUndefined();
+    expect(body.settings.chatModel).toBeUndefined();
     expect(body.settings.syncAccount.accessToken).toBe('');
   });
 
@@ -99,6 +101,42 @@ describe('settings sync client', () => {
     expect(downloaded.stream).toBe(true);
     expect(downloaded.darkMode).toBe(true);
     expect(downloaded.syncAccount).toEqual(account);
+  });
+
+  it('does not let synced provider settings overwrite the local chat model or max tokens', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      settings: {
+        selectedProviderId: 'openrouter',
+        selectedModel: 'remote-first-model',
+        model: 'remote-first-model',
+        maxTokens: 2048,
+        providers: [
+          {
+            id: 'openrouter',
+            name: 'OpenRouter',
+            apiBaseUrl: 'https://openrouter.ai/api/v1',
+            apiKey: 'openrouter-secret',
+            requestMode: 'proxy',
+            proxyUrl: '',
+            proxyAccessToken: '',
+            models: ['remote-first-model', 'local-chat-model']
+          }
+        ]
+      }
+    }), { status: 200 }));
+    const currentSettings = {
+      ...defaultSettings,
+      model: 'local-chat-model',
+      chatModel: 'local-chat-model',
+      maxTokens: 400000
+    };
+
+    const downloaded = await downloadSyncedSettings(account, currentSettings, fetchImpl);
+
+    expect(downloaded.model).toBe('local-chat-model');
+    expect(downloaded.chatModel).toBe('local-chat-model');
+    expect(downloaded.selectedModel).toBe('remote-first-model');
+    expect(downloaded.maxTokens).toBe(400000);
   });
 
   it('uses the current app origin when no sync endpoint is configured', async () => {

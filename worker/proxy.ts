@@ -65,6 +65,25 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
+function normalizeOpenAIBasePath(pathname: string): string {
+  const withoutTrailingSlash = pathname.replace(/\/+$/, '');
+  const endpointSuffixes = ['/chat/completions', '/models'];
+  let normalizedPath = withoutTrailingSlash;
+
+  for (const suffix of endpointSuffixes) {
+    if (normalizedPath.endsWith(suffix)) {
+      normalizedPath = normalizedPath.slice(0, -suffix.length);
+      break;
+    }
+  }
+
+  if (!normalizedPath || normalizedPath === '/') {
+    return '/v1';
+  }
+
+  return normalizedPath;
+}
+
 function getConfiguredProxyToken(env: ProxyWorkerEnv): string | undefined {
   const token = env.PROXY_ACCESS_TOKEN?.trim();
 
@@ -78,6 +97,8 @@ function getUpstreamUrl(targetBaseUrl: string): string | undefined {
     if (url.protocol !== 'https:' || url.search || url.hash) {
       return undefined;
     }
+
+    url.pathname = normalizeOpenAIBasePath(url.pathname);
 
     return trimTrailingSlash(url.toString());
   } catch {

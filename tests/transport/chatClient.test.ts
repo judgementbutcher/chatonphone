@@ -72,6 +72,22 @@ describe('sendChatRequest', () => {
     }));
   });
 
+  it('normalizes root and full endpoint base urls for direct requests', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+
+    await sendChatRequest(request, {
+      ...baseSettings,
+      apiBaseUrl: 'https://gateway.example.com'
+    }, fetchImpl);
+    await sendChatRequest(request, {
+      ...baseSettings,
+      apiBaseUrl: 'https://gateway.example.com/v1/chat/completions'
+    }, fetchImpl);
+
+    expect(fetchImpl.mock.calls[0][0]).toBe('https://gateway.example.com/v1/chat/completions');
+    expect(fetchImpl.mock.calls[1][0]).toBe('https://gateway.example.com/v1/chat/completions');
+  });
+
   it('uses the selected provider credentials and proxy settings', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
 
@@ -170,6 +186,20 @@ describe('fetchModelList', () => {
     }));
   });
 
+  it('parses common third-party model list shapes', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        models: ['gpt-4o-mini', { id: 'claude-sonnet' }]
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { models: [{ name: 'gemini-pro' }] }
+      }), { status: 200 }));
+
+    await expect(fetchModelList(baseSettings, fetchImpl)).resolves.toEqual(['gpt-4o-mini', 'claude-sonnet']);
+    await expect(fetchModelList(baseSettings, fetchImpl)).resolves.toEqual(['gemini-pro']);
+  });
+
   it('throws unsuccessful model list responses', async () => {
     const response = new Response('Unauthorized', { status: 401 });
     const fetchImpl = vi.fn().mockResolvedValue(response);
@@ -187,6 +217,15 @@ describe('readNonStreamingText', () => {
 
   it('falls back to empty text when content is missing', async () => {
     await expect(readNonStreamingText(new Response(JSON.stringify({ choices: [] })))).resolves.toBe('');
+  });
+
+  it('extracts text from content parts and text completions', async () => {
+    await expect(readNonStreamingText(new Response(JSON.stringify({
+      choices: [{ message: { content: [{ type: 'text', text: 'part ok' }] } }]
+    })))).resolves.toBe('part ok');
+    await expect(readNonStreamingText(new Response(JSON.stringify({
+      choices: [{ text: 'legacy ok' }]
+    })))).resolves.toBe('legacy ok');
   });
 });
 
@@ -225,4 +264,23 @@ it('reads streaming deltas with CRLF boundaries and final buffered events', asyn
   }
 
   expect(chunks).toEqual(['边', '界']);
+});
+
+it('skips malformed streaming events and reads content parts', async () => {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":[{"type":"text","text":"兼"}]}}]}\n\n'));
+      controller.enqueue(new TextEncoder().encode('data: not-json\n\n'));
+      controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"容"}}]}\n\n'));
+      controller.close();
+    }
+  });
+
+  const chunks: string[] = [];
+
+  for await (const chunk of readStreamingText(new Response(stream))) {
+    chunks.push(chunk);
+  }
+
+  expect(chunks).toEqual(['兼', '容']);
 });

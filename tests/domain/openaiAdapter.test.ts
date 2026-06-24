@@ -111,7 +111,8 @@ describe('toOpenAIChatRequest', () => {
         {
           type: 'image_url',
           image_url: {
-            url: 'data:image/jpeg;base64,abcd'
+            url: 'data:image/jpeg;base64,abcd',
+            detail: 'auto'
           }
         }
       ]

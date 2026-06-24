@@ -35,7 +35,6 @@ function providerSyncSignature(settings: AppSettings): string {
   return JSON.stringify({
     apiBaseUrl: settings.apiBaseUrl,
     apiKey: settings.apiKey,
-    model: settings.model,
     requestMode: settings.requestMode,
     proxyUrl: settings.proxyUrl,
     proxyAccessToken: settings.proxyAccessToken,

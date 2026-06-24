@@ -168,6 +168,7 @@ export default function SettingsPanel({
 
   function currentDraftSettings() {
     const selectedModelValue = selectedModel.trim();
+    const chatModelValue = draft.chatModel?.trim() || selectedModelValue || draft.model.trim();
     const nextProviders = providers.map((provider) => {
       const nextModels =
         provider.id === activeProvider.id && selectedModelValue && !provider.models.includes(selectedModelValue)
@@ -186,6 +187,8 @@ export default function SettingsPanel({
     // 保存时只更新 selectedModel，不修改 model（对话界面的模型选择独立）
     return getActiveProviderSettings({
       ...draft,
+      model: chatModelValue || selectedModelValue,
+      chatModel: chatModelValue,
       providers: nextProviders,
       selectedModel: selectedModelValue,
       syncAccount: {
@@ -315,6 +318,7 @@ export default function SettingsPanel({
 
           <Field label="模型列表（仅测试用）">
             <select
+              aria-label="模型列表"
               className={selectClass}
               value={activeModelOptions.includes(selectedModel) ? selectedModel : ''}
               disabled={activeModelOptions.length === 0}
@@ -330,6 +334,7 @@ export default function SettingsPanel({
           <Field label="模型名（仅测试用）">
             {activeModelOptions.length > 0 ? (
               <select
+                aria-label="模型名"
                 className={selectClass}
                 value={selectedModel}
                 onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value })}
@@ -341,6 +346,7 @@ export default function SettingsPanel({
               </select>
             ) : (
               <input
+                aria-label="模型名"
                 className={inputClass}
                 value={selectedModel}
                 placeholder="输入测试用模型名"
@@ -372,7 +378,7 @@ export default function SettingsPanel({
             <Field label="Temperature">
               <input
                 className={inputClass}
-                value={draft.temperature}
+                value={Number.isFinite(draft.temperature) ? draft.temperature : ''}
                 type="number"
                 min="0"
                 max="2"
@@ -383,7 +389,7 @@ export default function SettingsPanel({
             <Field label="Max tokens">
               <input
                 className={inputClass}
-                value={draft.maxTokens}
+                value={Number.isFinite(draft.maxTokens) ? draft.maxTokens : ''}
                 type="number"
                 min="1"
                 max="1000000"

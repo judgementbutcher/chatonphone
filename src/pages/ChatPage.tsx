@@ -43,8 +43,11 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     [settings.providers, settings.selectedProviderId]
   );
 
-  // 对话界面使用 chatModel，如果没有则使用第一个可用模型
-  const activeChatModel = settings.chatModel || quickModelOptions[0] || '';
+  const activeChatModel = settings.chatModel || settings.model || quickModelOptions[0] || '';
+  const visibleQuickModelOptions =
+    activeChatModel && !quickModelOptions.includes(activeChatModel)
+      ? [activeChatModel, ...quickModelOptions]
+      : quickModelOptions;
 
   useAutoSync(settings, sync.pullSyncedSettings, onSettingsChange);
 
@@ -70,7 +73,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
   }
 
   async function handleTestProvider(nextSettings: AppSettings) {
-    const model = nextSettings.model.trim();
+    const model = (nextSettings.selectedModel || nextSettings.model).trim();
 
     if (!model) {
       throw new Error('模型名不能为空。');
@@ -173,11 +176,11 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       } : provider
     ));
 
-    // 只更新 chatModel，不影响 model 和 selectedModel
     onSettingsChange({
       ...settings,
       providers: nextProviders,
       selectedProviderId: activeProvider.id,
+      model,
       chatModel: model
     });
   }
@@ -267,7 +270,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
           <div className="hidden min-w-0 items-center gap-2 md:flex">
             <label className="sr-only" htmlFor="quick-model-select">桌面模型选择</label>
-            {quickModelOptions.length > 0 ? (
+            {visibleQuickModelOptions.length > 0 ? (
               <select
                 id="quick-model-select"
                 aria-label="桌面模型选择"
@@ -275,7 +278,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
                 onChange={(event) => handleQuickModelSelect(event.target.value)}
                 className="tech-control h-10 max-w-[260px] rounded-full px-3.5 text-sm outline-none"
               >
-                {quickModelOptions.map((model) => (
+                {visibleQuickModelOptions.map((model) => (
                   <option key={model} value={model}>{model}</option>
                 ))}
               </select>
@@ -304,7 +307,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
         <div className="soft-divider-bottom flex bg-background/80 px-3 py-2 backdrop-blur-xl md:hidden">
           <label className="sr-only" htmlFor="quick-model-select-mobile">快捷模型</label>
-          {quickModelOptions.length > 0 ? (
+          {visibleQuickModelOptions.length > 0 ? (
             <select
               id="quick-model-select-mobile"
               aria-label="快捷模型"
@@ -312,7 +315,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
               onChange={(event) => handleQuickModelSelect(event.target.value)}
               className="tech-control h-10 min-w-0 flex-1 rounded-full px-3.5 text-sm outline-none"
             >
-              {quickModelOptions.map((model) => (
+              {visibleQuickModelOptions.map((model) => (
                 <option key={model} value={model}>{model}</option>
               ))}
             </select>

@@ -25,7 +25,6 @@ function providerSettingsPayload(settings: AppSettings): Partial<AppSettings> {
   return {
     apiBaseUrl: normalized.apiBaseUrl,
     apiKey: normalized.apiKey,
-    model: normalized.model,
     requestMode: normalized.requestMode,
     proxyUrl: normalized.proxyUrl,
     proxyAccessToken: normalized.proxyAccessToken,

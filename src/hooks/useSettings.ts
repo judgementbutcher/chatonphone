@@ -39,8 +39,8 @@ export function useSettings(): UseSettingsReturn {
       ...settings,
       providers: nextProviders,
       selectedProviderId: activeProvider.id,
-      selectedModel: model,
-      model
+      model,
+      chatModel: model
     });
   }
 

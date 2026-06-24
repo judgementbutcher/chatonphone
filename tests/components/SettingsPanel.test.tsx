@@ -142,7 +142,9 @@ describe('SettingsPanel', () => {
       apiKey: 'openrouter-secret'
     }));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'google/gemini-2.5-pro',
+      model: 'anthropic/claude-3.5-sonnet',
+      chatModel: 'anthropic/claude-3.5-sonnet',
+      selectedModel: 'google/gemini-2.5-pro',
       providers: expect.arrayContaining([
         expect.objectContaining({
           models: ['anthropic/claude-3.5-sonnet', 'google/gemini-2.5-pro']
@@ -207,7 +209,8 @@ describe('SettingsPanel', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       apiBaseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'openrouter-secret',
-      model: 'google/gemini-2.5-pro',
+      model: 'anthropic/claude-3.5-sonnet',
+      chatModel: 'anthropic/claude-3.5-sonnet',
       selectedProviderId: 'provider-2',
       selectedModel: 'google/gemini-2.5-pro',
       providers: expect.arrayContaining([
@@ -272,7 +275,9 @@ describe('SettingsPanel', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       apiBaseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'openrouter-secret',
-      model: 'anthropic/claude-3.5-sonnet',
+      model: 'gpt-4o-mini',
+      chatModel: 'gpt-4o-mini',
+      selectedModel: 'anthropic/claude-3.5-sonnet',
       requestMode: 'proxy',
       proxyUrl: '',
       proxyAccessToken: '',
@@ -328,7 +333,9 @@ describe('SettingsPanel', () => {
     await user.click(screen.getByRole('button', { name: '保存设置' }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'beta-model',
+      model: 'alpha-model',
+      chatModel: 'alpha-model',
+      selectedModel: 'beta-model',
       providers: expect.arrayContaining([
         expect.objectContaining({
           models: ['alpha-model', 'beta-model']

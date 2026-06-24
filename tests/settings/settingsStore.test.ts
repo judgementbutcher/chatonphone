@@ -57,6 +57,7 @@ describe('settingsStore', () => {
       ...defaultSettings,
       apiKey: 'secret',
       proxyUrl: 'https://proxy.example.com',
+      temperature: 0.3,
       providers: [
         {
           ...defaultProvider,
@@ -142,9 +143,36 @@ describe('settingsStore', () => {
       apiBaseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'openrouter-secret',
       model: 'anthropic/claude-3.5-sonnet',
+      chatModel: 'anthropic/claude-3.5-sonnet',
       requestMode: 'proxy',
       proxyUrl: 'https://proxy.example.com',
       proxyAccessToken: 'proxy-secret'
+    });
+  });
+
+  it('preserves the independent chat model and global token limit', () => {
+    saveSettings({
+      ...defaultSettings,
+      model: 'gpt-5.5',
+      chatModel: 'codex-auto-review',
+      selectedProviderId: 'default',
+      selectedModel: 'gpt-5.5',
+      maxTokens: 400000,
+      providers: [
+        {
+          ...defaultProvider,
+          apiBaseUrl: 'https://gateway.example.com/v1',
+          apiKey: 'secret',
+          models: ['gpt-5.5', 'codex-auto-review']
+        }
+      ]
+    });
+
+    expect(loadSettings()).toMatchObject({
+      model: 'codex-auto-review',
+      chatModel: 'codex-auto-review',
+      selectedModel: 'gpt-5.5',
+      maxTokens: 400000
     });
   });
 });
