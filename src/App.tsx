@@ -893,51 +893,63 @@ export default function App() {
 
   if (!hasAuthenticatedAccount(settings)) {
     return (
-      <main className="authShell" data-theme={themeName}>
+      <main className="auth-shell" data-theme={themeName}>
         <form
-          className="authPanel"
+          className="auth-panel space-y-6"
           onSubmit={(event) => {
             event.preventDefault();
             void handleAuthGateSubmit('login');
           }}
         >
-          <div className="authHeader">
-            <h1>ChatOnPhone</h1>
-            <h2>登录或注册</h2>
+          <div className="space-y-2 text-center">
+            <h1 className="text-3xl font-bold tracking-tight">ChatOnPhone</h1>
+            <h2 className="text-lg text-muted-foreground">登录或注册</h2>
           </div>
-          <label>
-            账号
-            <input
-              value={authAccountId}
-              autoComplete="username"
-              onChange={(event) => setAuthAccountId(event.target.value)}
-            />
-          </label>
-          <label>
-            登录密码
-            <input
-              value={authPassword}
-              type="password"
-              autoComplete="current-password"
-              onChange={(event) => setAuthPassword(event.target.value)}
-            />
-          </label>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">账号</label>
+              <input
+                value={authAccountId}
+                autoComplete="username"
+                onChange={(event) => setAuthAccountId(event.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">登录密码</label>
+              <input
+                value={authPassword}
+                type="password"
+                autoComplete="current-password"
+                onChange={(event) => setAuthPassword(event.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+          </div>
+
           {authError && (
-            <div className="authError" role="alert">
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
               {authError}
             </div>
           )}
-          <div className="authActions">
+
+          <div className="flex gap-3">
             <button
               type="button"
-              className="secondaryButton"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
               disabled={isAuthenticating}
               onClick={() => void handleAuthGateSubmit('register')}
             >
               <UserPlus aria-hidden="true" size={17} strokeWidth={2.25} />
               注册
             </button>
-            <button type="submit" className="primaryButton" disabled={isAuthenticating}>
+            <button
+              type="submit"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+              disabled={isAuthenticating}
+            >
               <LogIn aria-hidden="true" size={17} strokeWidth={2.25} />
               登录
             </button>
@@ -948,45 +960,58 @@ export default function App() {
   }
 
   return (
-    <main className="appShell" data-theme={themeName}>
-      <header className="topBar">
+    <main className="app-shell" data-theme={themeName}>
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
         <button
           type="button"
-          className="iconButton topAction"
+          className="flex h-10 w-10 items-center justify-center rounded-md border bg-background hover:bg-accent hover:text-accent-foreground"
           aria-label="打开会话"
           aria-controls="conversation-drawer"
           aria-expanded={isConversationDrawerOpen}
           onClick={openConversationDrawer}
         >
-          <Menu aria-hidden="true" size={21} strokeWidth={2.25} />
+          <Menu aria-hidden="true" size={20} strokeWidth={2.25} />
         </button>
-        <div className="topTitle">
-          <h1>ChatOnPhone</h1>
-          <p>{activeConversation.title}</p>
+        <div className="flex-1 text-center px-4">
+          <h1 className="text-lg font-semibold">ChatOnPhone</h1>
+          <p className="text-xs text-muted-foreground truncate">{activeConversation.title}</p>
         </div>
         <button
           type="button"
-          className="iconButton topAction"
+          className="flex h-10 w-10 items-center justify-center rounded-md border bg-background hover:bg-accent hover:text-accent-foreground"
           aria-label="打开设置"
           aria-controls="settings-drawer"
           aria-expanded={isSettingsDrawerOpen}
           onClick={openSettingsDrawer}
         >
-          <SettingsIcon aria-hidden="true" size={21} strokeWidth={2.25} />
+          <SettingsIcon aria-hidden="true" size={20} strokeWidth={2.25} />
         </button>
       </header>
-      <div className="workspace">
+
+      <div className="relative flex-1 overflow-hidden">
         {(isConversationDrawerOpen || isSettingsDrawerOpen) && (
-          <button type="button" className="drawerBackdrop" aria-label="关闭面板" onClick={closeDrawers} />
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            aria-label="关闭面板"
+            onClick={closeDrawers}
+          />
         )}
+
         <div
           id="conversation-drawer"
-          className="drawer drawer-left"
-          data-open={isConversationDrawerOpen}
+          className={`fixed left-0 top-0 bottom-0 z-50 w-[85vw] max-w-sm transform bg-card border-r shadow-lg transition-transform duration-300 ${
+            isConversationDrawerOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
         >
-          <div className="drawerChrome">
-            <button type="button" className="iconButton drawerClose" aria-label="关闭会话" onClick={() => setIsConversationDrawerOpen(false)}>
-              <X aria-hidden="true" size={20} strokeWidth={2.25} />
+          <div className="flex h-full flex-col">
+            <button
+              type="button"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent"
+              aria-label="关闭会话"
+              onClick={() => setIsConversationDrawerOpen(false)}
+            >
+              <X aria-hidden="true" size={18} strokeWidth={2.25} />
             </button>
             <ConversationList
               conversations={conversations}
@@ -1014,28 +1039,38 @@ export default function App() {
             />
           </div>
         </div>
-        <section className="chatPanel">
-          <div className="chatMetaBar">
+
+        <section className="flex h-full w-full flex-col items-center">
+          <div className="flex h-12 w-full max-w-4xl items-center justify-center gap-2 px-4 text-xs text-muted-foreground">
             {quickModelOptions.length > 0 ? (
-              <label className="quickModelSelect">
+              <div className="flex items-center gap-2 rounded-full border bg-card px-3 py-1">
                 <span>快捷模型</span>
-                <select value={settings.model} onChange={(event) => handleQuickModelSelect(event.target.value)}>
+                <select
+                  value={settings.model}
+                  onChange={(event) => handleQuickModelSelect(event.target.value)}
+                  className="border-0 bg-transparent text-foreground focus:outline-none"
+                >
                   {quickModelOptions.map((model) => (
                     <option key={model} value={model}>{model}</option>
                   ))}
                 </select>
-              </label>
+              </div>
             ) : (
-              <span>{settings.model || '未设置模型'}</span>
+              <span className="rounded-full border bg-card px-3 py-1">{settings.model || '未设置模型'}</span>
             )}
-            <span>{state.isGenerating ? '生成中' : '就绪'}</span>
+            <span className="rounded-full border bg-card px-3 py-1">
+              {state.isGenerating ? '生成中' : '就绪'}
+            </span>
           </div>
+
           {state.error && <ErrorBanner title="请求失败" detail={state.error} />}
+
           <MessageList
             messages={state.messages}
             onEditUserMessage={editUserMessage}
             onRegenerate={regenerateFromLastUserMessage}
           />
+
           <Composer
             isGenerating={state.isGenerating}
             draftText={draftText}
@@ -1044,14 +1079,21 @@ export default function App() {
             onStop={handleStop}
           />
         </section>
+
         <div
           id="settings-drawer"
-          className="drawer drawer-right"
-          data-open={isSettingsDrawerOpen}
+          className={`fixed right-0 top-0 bottom-0 z-50 w-[85vw] max-w-sm transform bg-card border-l shadow-lg transition-transform duration-300 ${
+            isSettingsDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
         >
-          <div className="drawerChrome">
-            <button type="button" className="iconButton drawerClose" aria-label="关闭设置" onClick={() => setIsSettingsDrawerOpen(false)}>
-              <X aria-hidden="true" size={20} strokeWidth={2.25} />
+          <div className="flex h-full flex-col">
+            <button
+              type="button"
+              className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent"
+              aria-label="关闭设置"
+              onClick={() => setIsSettingsDrawerOpen(false)}
+            >
+              <X aria-hidden="true" size={18} strokeWidth={2.25} />
             </button>
             <SettingsPanel
               settings={settings}
