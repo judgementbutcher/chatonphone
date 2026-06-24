@@ -1,12 +1,26 @@
-.worktrees/
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
 server-dist/
 *.tsbuildinfo
+
+# Vite generated
 vite.config.js
 vite.config.d.ts
+
+# Testing
 playwright-report/
 test-results/
+
+# Temporary files
+.tmp/
+*.tar.gz
+*.backup
+
+# IDE and tools
+.worktrees/
 .superpowers/
 .agents/
 .codex/

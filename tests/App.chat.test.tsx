@@ -48,7 +48,12 @@ function saveAuthenticatedSettings() {
   });
 }
 
+async function openSettings(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getAllByRole('button', { name: '打开设置' }).at(-1)!);
+}
+
 async function configureProvider(user: ReturnType<typeof userEvent.setup>) {
+  await openSettings(user);
   await user.type(screen.getByLabelText('API Base URL'), 'https://gateway.example.com/v1');
   await user.type(screen.getByLabelText('API Key'), 'secret');
   await user.click(screen.getByRole('button', { name: '拉取模型列表' }));

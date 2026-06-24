@@ -44,6 +44,10 @@ function saveAuthenticatedSettings(overrides: Partial<AppSettings> = {}) {
   saveSettings(authenticatedSettings(overrides));
 }
 
+async function openSettings(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getAllByRole('button', { name: '打开设置' }).at(-1)!);
+}
+
 describe('App', () => {
   beforeEach(async () => {
     localStorage.clear();
@@ -142,6 +146,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '登录' }));
 
     await waitFor(() => expect(screen.getByLabelText('消息内容')).toBeInTheDocument());
+    await openSettings(user);
     expect(screen.getByLabelText('API Base URL')).toHaveValue('https://openrouter.ai/api/v1');
     expect(screen.getByLabelText('模型名')).toHaveValue('synced-model');
     expect(fetchMock.mock.calls[0][0]).toBe('/auth/login');
@@ -189,6 +194,7 @@ describe('App', () => {
 
     expect(screen.getAllByText('你好').length).toBeGreaterThan(0);
 
+    await openSettings(user);
     await user.click(screen.getByRole('button', { name: '清除本机数据' }));
 
     await waitFor(() => {
@@ -196,14 +202,25 @@ describe('App', () => {
     });
   });
 
-  it('does not expose login or register actions from the settings sidebar', () => {
+  it('does not expose login or register actions from the settings sidebar', async () => {
+    const user = userEvent.setup();
     render(<App />);
+
+    await openSettings(user);
 
     expect(screen.getByText('当前账号')).toBeInTheDocument();
     expect(screen.getByText('desktop-user')).toBeInTheDocument();
     expect(screen.queryByLabelText('登录密码')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '注册账号' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '登录账号' })).not.toBeInTheDocument();
+  });
+
+  it('keeps settings out of the active chat view until opened', () => {
+    render(<App />);
+
+    expect(screen.queryByLabelText('API Base URL')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '保存设置' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('消息内容')).toBeInTheDocument();
   });
 
   it('uploads provider changes whenever a logged-in account saves settings', async () => {
@@ -244,6 +261,7 @@ describe('App', () => {
 
     render(<App />);
 
+    await openSettings(user);
     await user.clear(screen.getByLabelText('API Base URL'));
     await user.type(screen.getByLabelText('API Base URL'), 'https://openrouter.ai/api/v1');
     await user.clear(screen.getByLabelText('API Key'));
@@ -269,6 +287,7 @@ describe('App', () => {
 
     render(<App />);
 
+    await openSettings(user);
     await user.click(screen.getByLabelText('暗色模式'));
     await user.click(screen.getByRole('button', { name: '保存设置' }));
 
@@ -316,6 +335,7 @@ describe('App', () => {
 
     render(<App />);
 
+    await openSettings(userEvent.setup());
     await waitFor(() => expect(screen.getByLabelText('API Base URL')).toHaveValue('https://openrouter.ai/api/v1'));
     expect(screen.getByLabelText('模型名')).toHaveValue('remote-model');
     expect(fetchMock).toHaveBeenCalledWith('/sync/settings/desktop-user', expect.objectContaining({
@@ -396,6 +416,7 @@ describe('App', () => {
 
     render(<App />);
 
+    await openSettings(userEvent.setup());
     await waitFor(() => expect(screen.getByLabelText('模型名')).toHaveValue('startup-model'));
 
     nowSpy.mockReturnValue(7000);
@@ -414,6 +435,7 @@ describe('App', () => {
 
     render(<App />);
 
+    await openSettings(user);
     await user.type(screen.getByLabelText('API Base URL'), 'https://gateway.example.com/v1');
     await user.type(screen.getByLabelText('API Key'), 'secret');
     await user.type(screen.getByLabelText('模型名'), 'manual-model');
@@ -478,6 +500,7 @@ describe('App', () => {
     await user.type(screen.getByLabelText('登录密码'), 'correct horse battery staple');
     await user.click(screen.getByRole('button', { name: '登录' }));
 
+    await openSettings(user);
     await waitFor(() => expect(screen.getByLabelText('API Base URL')).toHaveValue('https://openrouter.ai/api/v1'));
 
     await user.type(screen.getByLabelText('消息内容'), '你好');
@@ -501,6 +524,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(document.documentElement).toHaveAttribute('data-theme', 'light'));
+    await openSettings(user);
     await user.click(screen.getByLabelText('暗色模式'));
     await user.click(screen.getByRole('button', { name: '保存设置' }));
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Menu, PanelRightOpen, Settings as SettingsIcon, Sparkles, X } from 'lucide-react';
+import { Menu, Settings as SettingsIcon, X } from 'lucide-react';
 import type { AppSettings } from '../domain/types';
 import { useDrawers } from '../hooks/useDrawers';
 import { useConversations } from '../hooks/useConversations';
@@ -240,7 +240,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       )}
 
       <section className="flex min-w-0 flex-1 flex-col" aria-label="聊天工作区">
-        <header className="soft-divider-bottom flex min-h-16 items-center gap-3 bg-card/40 px-3 backdrop-blur-2xl sm:px-5" role="banner">
+        <header className="soft-divider-bottom flex min-h-16 items-center gap-3 bg-background/85 px-3 backdrop-blur-xl sm:px-5" role="banner">
           <button
             type="button"
             className="soft-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:hidden"
@@ -254,8 +254,8 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-base font-semibold tracking-[-0.02em] sm:text-lg">ChatOnPhone</h1>
-              <span className="chip hidden rounded-full px-2.5 py-1 text-[11px] font-semibold text-primary sm:inline-flex">
+              <h1 className="truncate text-base font-semibold sm:text-lg">ChatOnPhone</h1>
+              <span className="chip hidden rounded-full px-2.5 py-1 text-[11px] font-medium text-muted-foreground sm:inline-flex">
                 {activeProvider?.name || '未配置'}
               </span>
             </div>
@@ -263,11 +263,11 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
           </div>
 
           <div className="hidden min-w-0 items-center gap-2 md:flex">
-            <label className="sr-only" htmlFor="quick-model-select">桌面快捷模型</label>
+            <label className="sr-only" htmlFor="quick-model-select">桌面模型选择</label>
             {quickModelOptions.length > 0 ? (
               <select
                 id="quick-model-select"
-                aria-label="桌面快捷模型"
+                aria-label="桌面模型选择"
                 value={settings.model}
                 onChange={(event) => handleQuickModelSelect(event.target.value)}
                 className="tech-control h-10 max-w-[260px] rounded-full px-3.5 text-sm outline-none"
@@ -289,9 +289,9 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
           <button
             type="button"
-            className="soft-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full xl:hidden"
+            className="soft-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:hidden"
             aria-label="打开设置"
-            aria-controls="settings-drawer"
+            aria-controls="settings-sidebar"
             aria-expanded={drawers.isSettingsDrawerOpen}
             onClick={drawers.openSettingsDrawer}
           >
@@ -299,7 +299,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
           </button>
         </header>
 
-        <div className="soft-divider-bottom flex bg-background/[0.38] px-3 py-2 backdrop-blur-xl md:hidden">
+        <div className="soft-divider-bottom flex bg-background/80 px-3 py-2 backdrop-blur-xl md:hidden">
           <label className="sr-only" htmlFor="quick-model-select-mobile">快捷模型</label>
           {quickModelOptions.length > 0 ? (
             <select
@@ -330,6 +330,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
           messages={chatGeneration.state.messages}
           onEditUserMessage={handleEditUserMessage}
           onRegenerate={chatGeneration.regenerateMessage}
+          isGenerating={chatGeneration.state.isGenerating}
         />
 
         <Composer
@@ -343,44 +344,40 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       </section>
 
       <aside
-        className="soft-divider-left hidden w-[368px] shrink-0 bg-card/[0.48] backdrop-blur-2xl xl:block"
+        id="settings-sidebar"
+        className="settings-sidebar"
+        data-open={drawers.isSettingsDrawerOpen}
         aria-label="设置侧边栏"
-        aria-hidden={drawers.isSettingsDrawerOpen ? true : undefined}
       >
-        {settingsPanel}
-      </aside>
-
-      {drawers.isSettingsDrawerOpen && (
-        <div
-          id="settings-drawer"
-          className="drawer-slide-right glass-panel-strong fixed inset-y-0 right-0 z-50 w-[90vw] max-w-[398px] rounded-l-[1.6rem] xl:hidden"
-        >
+        <div className="settings-sidebar__rail">
           <button
             type="button"
-            className="soft-action absolute left-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full"
-            aria-label="关闭设置"
-            onClick={drawers.closeDrawers}
+            className="soft-action inline-flex h-10 w-10 items-center justify-center rounded-full"
+            aria-label="打开设置"
+            aria-controls="settings-sidebar"
+            aria-expanded={drawers.isSettingsDrawerOpen}
+            onClick={drawers.openSettingsDrawer}
           >
-            <X aria-hidden="true" size={18} strokeWidth={2.25} />
+            <SettingsIcon aria-hidden="true" size={19} strokeWidth={2.25} />
           </button>
-          {settingsPanel}
         </div>
-      )}
 
-      <button
-        type="button"
-        className="soft-action fixed bottom-[106px] right-3 z-30 hidden h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold lg:inline-flex xl:hidden"
-        aria-label="打开设置"
-        onClick={drawers.openSettingsDrawer}
-      >
-        <PanelRightOpen aria-hidden="true" size={17} strokeWidth={2.25} />
-        设置
-      </button>
-
-      <div className="chip pointer-events-none fixed left-1/2 top-4 hidden -translate-x-1/2 items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground backdrop-blur lg:flex xl:hidden">
-        <Sparkles aria-hidden="true" size={14} strokeWidth={2.1} className="text-primary" />
-        <span>{activeProvider?.name || '未配置供应商'} · {settings.model || '未设置模型'}</span>
-      </div>
+        <div className="settings-sidebar__panel">
+          {drawers.isSettingsDrawerOpen && (
+            <>
+              <button
+                type="button"
+                className="soft-action absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full"
+                aria-label="收起设置"
+                onClick={drawers.closeDrawers}
+              >
+                <X aria-hidden="true" size={18} strokeWidth={2.25} />
+              </button>
+              {settingsPanel}
+            </>
+          )}
+        </div>
+      </aside>
     </main>
   );
 }

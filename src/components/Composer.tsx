@@ -91,7 +91,7 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
 
   if (isGenerating) {
     return (
-      <div className="soft-divider-top bg-card/[0.46] px-3 py-3 shadow-[0_-18px_48px_hsl(var(--foreground)/0.08)] backdrop-blur-2xl sm:px-5">
+      <div className="soft-divider-top bg-background/86 px-3 py-3 backdrop-blur-xl sm:px-5">
         <div className="mx-auto flex max-w-4xl justify-center">
           <button
             type="button"
@@ -109,7 +109,7 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
 
   return (
     <form
-      className="soft-divider-top bg-card/[0.52] px-3 py-3 shadow-[0_-18px_48px_hsl(var(--foreground)/0.08)] backdrop-blur-2xl sm:px-5"
+      className="soft-divider-top bg-background/86 px-3 py-3 backdrop-blur-xl sm:px-5"
       onSubmit={async (event) => {
         event.preventDefault();
         try {
@@ -154,11 +154,13 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
             {pendingFiles.map((pendingFile) => (
               <div key={pendingFile.id} className="group relative flex w-[88px] shrink-0 animate-fade-up flex-col">
                 {pendingFile.previewUrl ? (
-                  <img
-                    src={pendingFile.previewUrl}
-                    alt={pendingFile.file.name}
-                    className="h-16 w-16 rounded-[1rem] object-cover shadow-[inset_0_0_0_1px_hsl(var(--hairline)/0.52),0_10px_24px_hsl(var(--foreground)/0.08)]"
-                  />
+                  <div className="relative h-16 w-16 overflow-hidden rounded-[1rem] bg-gradient-to-br from-muted/30 to-muted/10 shadow-[inset_0_0_0_1px_hsl(var(--hairline)/0.52),0_10px_24px_hsl(var(--foreground)/0.08)]">
+                    <img
+                      src={pendingFile.previewUrl}
+                      alt={pendingFile.file.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                 ) : (
                   <div className="flex h-16 w-16 items-center justify-center rounded-[1rem] bg-muted/[0.66] shadow-[inset_0_0_0_1px_hsl(var(--hairline)/0.52),0_10px_24px_hsl(var(--foreground)/0.06)]" aria-hidden="true">
                     <FileText size={21} strokeWidth={2.1} className="text-primary" />

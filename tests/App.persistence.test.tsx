@@ -108,6 +108,26 @@ async function stopGenerationIfActive(user: ReturnType<typeof userEvent.setup>) 
   }
 }
 
+async function openSettings(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getAllByRole('button', { name: '打开设置' }).at(-1)!);
+}
+
+async function resetLocalDataFromSettings(user: ReturnType<typeof userEvent.setup>) {
+  await openSettings(user);
+  await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+}
+
+function resetLocalDataFromSettingsWithFireEvent() {
+  const settingsButton = screen.getAllByRole('button', { name: '打开设置' }).at(-1);
+
+  if (!settingsButton) {
+    throw new Error('Expected settings button to be available.');
+  }
+
+  fireEvent.click(settingsButton);
+  fireEvent.click(screen.getByRole('button', { name: '清除本机数据' }));
+}
+
 describe('App persistence', () => {
   beforeEach(() => {
     storageMock.deleteConversation.mockReset();
@@ -189,7 +209,7 @@ describe('App persistence', () => {
       expect(pipeline.readers).toHaveLength(1);
     });
 
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
 
     expect(storageMock.resetLocalData).toHaveBeenCalledTimes(1);
 
@@ -266,7 +286,7 @@ describe('App persistence', () => {
     render(<App />);
 
     await screen.findByRole('button', { name: '旧会话' });
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('清除本机数据失败，请重试。');
     expect(await screen.findByRole('button', { name: '旧会话' })).toBeInTheDocument();
@@ -295,15 +315,17 @@ describe('App persistence', () => {
 
     render(<App />);
 
+    await openSettings(user);
     expect(screen.getByLabelText('API Base URL')).toHaveValue('https://gateway.example.com/v1');
     expect(screen.getByLabelText('API Key')).toHaveValue('secret');
     expect(screen.getByLabelText('模型名')).toHaveValue('vision-model');
     expect(screen.queryByLabelText('请求模式')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('代理地址')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('清除本机数据失败，请重试。');
+    await openSettings(user);
     await waitFor(() => {
       expect(screen.getByLabelText('API Base URL')).toHaveValue('https://gateway.example.com/v1');
       expect(screen.getByLabelText('API Key')).toHaveValue('secret');
@@ -348,7 +370,7 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalled();
     });
 
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('清除本机数据失败，请重试。');
     expect(await screen.findByRole('button', { name: '旧会话' })).toBeInTheDocument();
@@ -398,7 +420,7 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '清除本机数据' }));
+    resetLocalDataFromSettingsWithFireEvent();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('清除本机数据失败，请重试。');
 
@@ -458,7 +480,7 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalledTimes(1);
     });
 
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('清除本机数据失败，请重试。');
     await user.click(await screen.findByRole('button', { name: '旧会话' }));
@@ -607,7 +629,7 @@ describe('App persistence', () => {
     await stopGenerationIfActive(user);
     const saveCallsAtResetStart = storageMock.saveConversation.mock.calls.length;
 
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
 
     expect(storageMock.resetLocalData).toHaveBeenCalledTimes(1);
 
@@ -647,10 +669,10 @@ describe('App persistence', () => {
 
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
     expect(storageMock.resetLocalData).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
     expect(storageMock.resetLocalData).toHaveBeenCalledTimes(1);
 
     await user.type(screen.getByLabelText('消息内容'), '重置期间');
@@ -768,7 +790,7 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalled();
     });
 
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
 
     if (!pendingSave.resolve) {
       throw new Error('Expected save to be pending.');
@@ -816,7 +838,7 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalledTimes(1);
     });
 
-    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await resetLocalDataFromSettings(user);
 
     if (!pendingSave.resolve) {
       throw new Error('Expected save to be pending.');
@@ -1063,7 +1085,7 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '清除本机数据' }));
+    resetLocalDataFromSettingsWithFireEvent();
 
     await waitFor(() => {
       expect(storageMock.resetLocalData).toHaveBeenCalled();

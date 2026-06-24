@@ -9,6 +9,7 @@ interface Props {
   messages: ChatMessage[];
   onEditUserMessage?: (message: ChatMessage) => void;
   onRegenerate?: (message: ChatMessage) => void;
+  isGenerating?: boolean;
 }
 
 function textFromNode(node: unknown): string {
@@ -54,7 +55,7 @@ function formatMessageTime(timestamp: number) {
   });
 }
 
-export default function MessageList({ messages, onEditUserMessage, onRegenerate }: Props) {
+export default function MessageList({ messages, onEditUserMessage, onRegenerate, isGenerating }: Props) {
   const terminalMessage = messages[messages.length - 1];
   const regenerableAssistantMessageId = terminalMessage?.role === 'assistant' ? terminalMessage.id : null;
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -74,19 +75,13 @@ export default function MessageList({ messages, onEditUserMessage, onRegenerate 
     <section className="min-h-0 flex-1 overflow-y-auto px-3 py-6 sm:px-5 lg:px-8 scrollbar-thin" aria-label="消息列表">
       {messages.length === 0 && (
         <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-2 text-center">
-          <div className="relative flex h-[72px] w-[72px] items-center justify-center rounded-[1.6rem] bg-primary/10 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.16),0_18px_46px_hsl(var(--primary)/0.18)]">
-            <span className="absolute inset-[-10px] rounded-[2rem] bg-primary/10 blur-xl" aria-hidden="true" />
-            <Bot aria-hidden="true" size={31} strokeWidth={2.1} className="relative text-primary" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.18)]">
+            <Bot aria-hidden="true" size={26} strokeWidth={2.1} className="text-primary" />
           </div>
-          <h2 className="mt-5 text-2xl font-semibold tracking-[-0.04em]">开始新的对话</h2>
+          <h2 className="mt-5 text-2xl font-semibold">开始新的对话</h2>
           <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
             输入问题、上传图片或文本文件，当前会话会自动保存在本机。
           </p>
-          <div className="mt-5 grid w-full max-w-md grid-cols-3 gap-2 text-xs text-muted-foreground">
-            <span className="chip rounded-full px-3 py-2">提问</span>
-            <span className="chip rounded-full px-3 py-2">整理文件</span>
-            <span className="chip rounded-full px-3 py-2">生成内容</span>
-          </div>
         </div>
       )}
 
@@ -114,7 +109,7 @@ export default function MessageList({ messages, onEditUserMessage, onRegenerate 
                 </div>
 
                 <div
-                  className={`w-full rounded-[1.25rem] px-4 py-3 ${
+                  className={`w-full rounded-2xl px-4 py-3 ${
                     isUser
                       ? 'user-message-bubble'
                       : 'message-bubble assistant-message-bubble'
@@ -237,6 +232,29 @@ export default function MessageList({ messages, onEditUserMessage, onRegenerate 
             </article>
           );
         })}
+
+        {isGenerating && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.text.trim() === '' && (
+          <article className="flex animate-fade-up gap-3 justify-start">
+            <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.14),0_10px_24px_hsl(var(--primary)/0.11)]">
+              <Bot size={19} strokeWidth={2.2} className="text-primary" />
+            </div>
+            <div className="min-w-0 max-w-[88%] sm:max-w-[78%] items-start flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">助手</span>
+              </div>
+              <div className="w-full rounded-2xl px-4 py-3 message-bubble assistant-message-bubble">
+                <div className="flex items-center gap-3">
+                  <div className="loadingSpinner">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                  </div>
+                  <span className="text-sm text-muted-foreground">正在思考...</span>
+                </div>
+              </div>
+            </div>
+          </article>
+        )}
       </div>
       <div ref={messagesEndRef} />
     </section>

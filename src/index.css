@@ -29,8 +29,8 @@
   --hairline: 202 42% 82%;
   --glow-primary: 188 92% 45%;
   --glow-accent: 207 100% 58%;
-  --shadow-soft: 0 18px 55px rgb(23 43 77 / 0.12);
-  --shadow-elevated: 0 28px 90px rgb(12 30 56 / 0.2);
+  --shadow-soft: 0 12px 34px rgb(23 43 77 / 0.08);
+  --shadow-elevated: 0 22px 70px rgb(12 30 56 / 0.16);
 
   font-family:
     "Space Grotesk", "HarmonyOS Sans SC", "MiSans", "PingFang SC",
@@ -69,8 +69,8 @@
   --hairline: 201 28% 28%;
   --glow-primary: 185 98% 55%;
   --glow-accent: 209 100% 64%;
-  --shadow-soft: 0 18px 60px rgb(0 0 0 / 0.34);
-  --shadow-elevated: 0 32px 110px rgb(0 0 0 / 0.48);
+  --shadow-soft: 0 14px 42px rgb(0 0 0 / 0.28);
+  --shadow-elevated: 0 24px 82px rgb(0 0 0 / 0.38);
 }
 
 * {
@@ -89,8 +89,7 @@ body {
   margin: 0;
   min-width: 320px;
   overflow: hidden;
-  background:
-    linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--surface-subtle)) 52%, hsl(var(--background)) 100%);
+  background: hsl(var(--background));
   color: hsl(var(--foreground));
   font-feature-settings: "rlig" 1, "calt" 1;
 }
@@ -133,10 +132,7 @@ select option {
   min-width: 0;
   isolation: isolate;
   background:
-    radial-gradient(circle at 8% 8%, hsl(var(--glow-primary) / 0.19), transparent 27rem),
-    radial-gradient(circle at 86% 15%, hsl(var(--glow-accent) / 0.14), transparent 31rem),
-    radial-gradient(circle at 76% 94%, hsl(var(--primary) / 0.12), transparent 26rem),
-    hsl(var(--background));
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--surface-subtle)) 100%);
 }
 
 .app-shell::before,
@@ -153,11 +149,11 @@ select option {
 .app-shell::before,
 .auth-shell::before {
   background:
-    linear-gradient(90deg, hsl(var(--foreground) / 0.045) 1px, transparent 1px),
-    linear-gradient(180deg, hsl(var(--foreground) / 0.04) 1px, transparent 1px);
-  background-size: 44px 44px;
+    linear-gradient(90deg, hsl(var(--foreground) / 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, hsl(var(--foreground) / 0.03) 1px, transparent 1px);
+  background-size: 56px 56px;
   mask-image: radial-gradient(circle at 50% 45%, black 0%, transparent 72%);
-  opacity: 0.54;
+  opacity: 0.24;
 }
 
 .app-shell::after,
@@ -167,6 +163,10 @@ select option {
     radial-gradient(circle at 72% 74%, hsl(var(--accent) / 0.13), transparent 20rem);
   filter: blur(4px);
   animation: aurora-drift 16s ease-in-out infinite alternate;
+}
+
+.app-shell::after {
+  display: none;
 }
 
 .auth-shell {
@@ -356,16 +356,83 @@ select option {
   box-shadow: inset 1px 0 0 hsl(var(--hairline) / 0.46);
 }
 
+.settings-sidebar {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 50;
+  display: flex;
+  width: min(90vw, 398px);
+  max-width: calc(100vw - 0.75rem);
+  overflow: hidden;
+  border-left: 1px solid hsl(var(--hairline) / 0.62);
+  border-radius: 1rem 0 0 1rem;
+  background: hsl(var(--panel) / 0.9);
+  box-shadow: var(--shadow-elevated);
+  transform: translateX(calc(100% + 0.75rem));
+  transition:
+    width 220ms ease,
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 180ms ease;
+}
+
+.settings-sidebar[data-open="true"] {
+  transform: translateX(0);
+}
+
+.settings-sidebar__rail {
+  display: none;
+}
+
+.settings-sidebar__panel {
+  position: relative;
+  width: 100%;
+  min-width: min(90vw, 398px);
+  height: 100%;
+}
+
+@media (min-width: 1024px) {
+  .settings-sidebar {
+    position: relative;
+    inset: auto;
+    z-index: 20;
+    width: 4rem;
+    max-width: none;
+    flex-shrink: 0;
+    border-radius: 0;
+    background: hsl(var(--panel) / 0.5);
+    box-shadow: inset 1px 0 0 hsl(var(--hairline) / 0.48);
+    transform: none;
+  }
+
+  .settings-sidebar[data-open="true"] {
+    width: 380px;
+    background: hsl(var(--panel) / 0.82);
+  }
+
+  .settings-sidebar__rail {
+    display: flex;
+    width: 4rem;
+    min-width: 4rem;
+    justify-content: center;
+    padding-top: 0.75rem;
+  }
+
+  .settings-sidebar[data-open="true"] .settings-sidebar__rail {
+    display: none;
+  }
+
+  .settings-sidebar__panel {
+    width: 380px;
+    min-width: 380px;
+  }
+}
+
 .tech-control {
   border: 0;
-  background:
-    linear-gradient(180deg, hsl(var(--panel-strong) / 0.9), hsl(var(--panel) / 0.72));
-  box-shadow:
-    inset 0 0 0 1px hsl(var(--hairline) / 0.58),
-    0 8px 24px hsl(var(--foreground) / 0.045);
+  background: hsl(var(--panel) / 0.82);
+  box-shadow: inset 0 0 0 1px hsl(var(--hairline) / 0.62);
   transition:
     box-shadow 180ms ease,
-    transform 180ms ease,
     background-color 180ms ease;
 }
 
@@ -373,36 +440,32 @@ select option {
 .tech-control:focus-within {
   box-shadow:
     inset 0 0 0 1px hsl(var(--primary) / 0.72),
-    0 0 0 4px hsl(var(--primary) / 0.12),
-    0 12px 34px hsl(var(--primary) / 0.1);
+    0 0 0 3px hsl(var(--primary) / 0.12);
 }
 
 .tech-control:hover {
-  transform: translateY(-1px);
   box-shadow:
-    inset 0 0 0 1px hsl(var(--hairline) / 0.76),
-    0 12px 30px hsl(var(--foreground) / 0.06);
+    inset 0 0 0 1px hsl(var(--hairline) / 0.78);
 }
 
 .primary-action {
-  background:
-    linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   box-shadow:
-    0 14px 34px hsl(var(--primary) / 0.28),
-    inset 0 1px 0 hsl(0 0% 100% / 0.34);
+    0 10px 24px hsl(var(--primary) / 0.2),
+    inset 0 1px 0 hsl(0 0% 100% / 0.22);
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
-    filter 180ms ease;
+    background-color 180ms ease;
 }
 
 .primary-action:hover {
   transform: translateY(-1px);
-  filter: saturate(1.06);
+  background: hsl(var(--primary) / 0.92);
   box-shadow:
-    0 18px 44px hsl(var(--primary) / 0.34),
-    inset 0 1px 0 hsl(0 0% 100% / 0.42);
+    0 14px 30px hsl(var(--primary) / 0.24),
+    inset 0 1px 0 hsl(0 0% 100% / 0.26);
 }
 
 .primary-action:active,
@@ -412,11 +475,11 @@ select option {
 }
 
 .soft-action {
-  background: hsl(var(--panel) / 0.7);
+  background: hsl(var(--panel) / 0.68);
   color: hsl(var(--foreground));
   box-shadow:
-    inset 0 0 0 1px hsl(var(--hairline) / 0.55),
-    0 8px 22px hsl(var(--foreground) / 0.045);
+    inset 0 0 0 1px hsl(var(--hairline) / 0.58),
+    0 6px 16px hsl(var(--foreground) / 0.035);
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
@@ -427,10 +490,10 @@ select option {
 .soft-action:hover {
   transform: translateY(-1px);
   color: hsl(var(--primary));
-  background: hsl(var(--primary) / 0.08);
+  background: hsl(var(--primary) / 0.07);
   box-shadow:
-    inset 0 0 0 1px hsl(var(--primary) / 0.32),
-    0 14px 34px hsl(var(--primary) / 0.11);
+    inset 0 0 0 1px hsl(var(--primary) / 0.28),
+    0 10px 24px hsl(var(--primary) / 0.08);
 }
 
 .danger-action {
@@ -469,29 +532,27 @@ select option {
 
 .chip {
   border: 0;
-  background: hsl(var(--panel) / 0.62);
+  background: hsl(var(--panel) / 0.66);
   box-shadow: inset 0 0 0 1px hsl(var(--hairline) / 0.48);
 }
 
 .message-bubble {
   border: 0;
   box-shadow:
-    inset 0 0 0 1px hsl(var(--hairline) / 0.5),
-    0 14px 38px hsl(var(--foreground) / 0.07);
+    inset 0 0 0 1px hsl(var(--hairline) / 0.52),
+    0 8px 24px hsl(var(--foreground) / 0.045);
 }
 
 .user-message-bubble {
-  background:
-    linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   box-shadow:
-    0 16px 42px hsl(var(--primary) / 0.25),
-    inset 0 1px 0 hsl(0 0% 100% / 0.32);
+    0 10px 26px hsl(var(--primary) / 0.18),
+    inset 0 1px 0 hsl(0 0% 100% / 0.22);
 }
 
 .assistant-message-bubble {
-  background:
-    linear-gradient(180deg, hsl(var(--panel-strong) / 0.9), hsl(var(--panel) / 0.72));
+  background: hsl(var(--panel) / 0.86);
 }
 
 .drawer-slide-left {

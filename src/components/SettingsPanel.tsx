@@ -122,7 +122,11 @@ export default function SettingsPanel({
     setNormalizedDraft({
       ...draft,
       selectedProviderId: provider.id,
-      selectedModel: provider.models[0] ?? ''
+      selectedModel: provider.models[0] ?? '',
+      // 保留用户设置的参数，不因切换供应商而改变
+      temperature: draft.temperature,
+      maxTokens: draft.maxTokens,
+      stream: draft.stream
     });
   }
 
@@ -179,11 +183,11 @@ export default function SettingsPanel({
       };
     });
 
+    // 保存时只更新 selectedModel，不修改 model（对话界面的模型选择独立）
     return getActiveProviderSettings({
       ...draft,
       providers: nextProviders,
       selectedModel: selectedModelValue,
-      model: selectedModelValue,
       syncAccount: {
         ...syncAccount,
         autoSync: true
@@ -248,9 +252,9 @@ export default function SettingsPanel({
         onSave(nextSettings);
       }}
     >
-      <div className="soft-divider-bottom px-5 pb-4 pt-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/80">Settings</p>
-        <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em]">连接与模型</h2>
+      <div className="soft-divider-bottom px-5 pb-4 pr-14 pt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/80">设置</p>
+        <h2 className="mt-1 text-lg font-semibold">连接与模型</h2>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 scrollbar-thin">
@@ -309,12 +313,12 @@ export default function SettingsPanel({
             </div>
           )}
 
-          <Field label="模型列表">
+          <Field label="模型列表（仅测试用）">
             <select
               className={selectClass}
               value={activeModelOptions.includes(selectedModel) ? selectedModel : ''}
               disabled={activeModelOptions.length === 0}
-              onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value, model: event.target.value })}
+              onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value })}
             >
               {activeModelOptions.length === 0 && <option value="">暂无模型列表</option>}
               {activeModelOptions.map((model) => (
@@ -323,12 +327,12 @@ export default function SettingsPanel({
             </select>
           </Field>
 
-          <Field label="模型名">
+          <Field label="模型名（仅测试用）">
             {activeModelOptions.length > 0 ? (
               <select
                 className={selectClass}
                 value={selectedModel}
-                onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value, model: event.target.value })}
+                onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value })}
               >
                 {!selectedModelIsListed && <option value={selectedModel}>{selectedModel}</option>}
                 {activeModelOptions.map((model) => (
@@ -339,7 +343,8 @@ export default function SettingsPanel({
               <input
                 className={inputClass}
                 value={selectedModel}
-                onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value, model: event.target.value })}
+                placeholder="输入测试用模型名"
+                onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value })}
               />
             )}
           </Field>
