@@ -91,11 +91,11 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
 
   if (isGenerating) {
     return (
-      <div className="border-t border-border bg-card/92 px-3 py-3 shadow-[0_-18px_40px_rgb(15_23_42_/_0.08)] backdrop-blur sm:px-5">
+      <div className="soft-divider-top bg-card/[0.46] px-3 py-3 shadow-[0_-18px_48px_hsl(var(--foreground)/0.08)] backdrop-blur-2xl sm:px-5">
         <div className="mx-auto flex max-w-4xl justify-center">
           <button
             type="button"
-            className="inline-flex h-11 items-center gap-2 rounded-md border border-destructive/35 bg-destructive/10 px-4 text-sm font-semibold text-destructive transition hover:bg-destructive/15"
+            className="danger-action inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold"
             aria-label="停止"
             onClick={onStop}
           >
@@ -109,7 +109,7 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
 
   return (
     <form
-      className="border-t border-border bg-card/94 px-3 py-3 shadow-[0_-18px_40px_rgb(15_23_42_/_0.08)] backdrop-blur sm:px-5"
+      className="soft-divider-top bg-card/[0.52] px-3 py-3 shadow-[0_-18px_48px_hsl(var(--foreground)/0.08)] backdrop-blur-2xl sm:px-5"
       onSubmit={async (event) => {
         event.preventDefault();
         try {
@@ -152,21 +152,21 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
         {pendingFiles.length > 0 && (
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-thin" aria-label="待发送文件">
             {pendingFiles.map((pendingFile) => (
-              <div key={pendingFile.id} className="group relative flex w-[88px] shrink-0 flex-col">
+              <div key={pendingFile.id} className="group relative flex w-[88px] shrink-0 animate-fade-up flex-col">
                 {pendingFile.previewUrl ? (
                   <img
                     src={pendingFile.previewUrl}
                     alt={pendingFile.file.name}
-                    className="h-16 w-16 rounded-md border border-border object-cover shadow-sm"
+                    className="h-16 w-16 rounded-[1rem] object-cover shadow-[inset_0_0_0_1px_hsl(var(--hairline)/0.52),0_10px_24px_hsl(var(--foreground)/0.08)]"
                   />
                 ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-md border border-border bg-muted shadow-sm" aria-hidden="true">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-[1rem] bg-muted/[0.66] shadow-[inset_0_0_0_1px_hsl(var(--hairline)/0.52),0_10px_24px_hsl(var(--foreground)/0.06)]" aria-hidden="true">
                     <FileText size={21} strokeWidth={2.1} className="text-primary" />
                   </div>
                 )}
                 <button
                   type="button"
-                  className="absolute right-5 top-[-6px] inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition hover:text-destructive"
+                  className="danger-action absolute right-5 top-[-6px] inline-flex h-6 w-6 items-center justify-center rounded-full"
                   aria-label={`移除文件 ${pendingFile.file.name}`}
                   onClick={() => removePendingFile(pendingFile.id)}
                 >
@@ -178,10 +178,10 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
           </div>
         )}
 
-        <div className="flex items-end gap-2 rounded-lg border border-border bg-background p-2 shadow-sm focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
+        <div className="tech-control flex items-end gap-2 rounded-[1.35rem] p-2">
           <button
             type="button"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            className="soft-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground"
             aria-label="添加文件"
             onClick={() => fileInputRef.current?.click()}
           >
@@ -210,7 +210,7 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
           <button
             type="submit"
             disabled={disabled || (draftText.trim().length === 0 && pendingFiles.length === 0)}
-            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-45 sm:px-4"
+            className="primary-action inline-flex h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold disabled:opacity-45 sm:px-4"
           >
             <Send aria-hidden="true" size={17} strokeWidth={2.35} />
             发送

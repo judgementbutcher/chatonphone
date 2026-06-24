@@ -56,14 +56,14 @@ export default function AuthPage({ settings, themeName, onAuthSuccess }: AuthPag
 
   return (
     <main className="auth-shell" data-theme={themeName}>
-      <section className="auth-panel animate-fade-up overflow-hidden rounded-lg">
-        <div className="border-b border-border bg-card px-6 py-5 sm:px-8">
+      <section className="auth-panel animate-fade-up overflow-hidden rounded-[1.6rem]">
+        <div className="soft-divider-bottom bg-card/[0.32] px-6 py-5 backdrop-blur-xl sm:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-[0_14px_34px_hsl(var(--primary)/0.28)]">
               <MessageSquare aria-hidden="true" size={23} strokeWidth={2.25} />
             </div>
             <div>
-              <h1 className="text-xl font-semibold tracking-normal">ChatOnPhone</h1>
+              <h1 className="text-xl font-semibold tracking-[-0.04em]">ChatOnPhone</h1>
               <p className="mt-1 text-sm text-muted-foreground">OpenAI-compatible mobile chat console</p>
             </div>
           </div>
@@ -89,7 +89,7 @@ export default function AuthPage({ settings, themeName, onAuthSuccess }: AuthPag
               value={auth.authAccountId}
               autoComplete="username"
               onChange={(event) => auth.setAuthAccountId(event.target.value)}
-              className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              className="tech-control h-11 w-full rounded-full px-3.5 text-sm outline-none"
               placeholder="desktop-user"
             />
           </label>
@@ -101,13 +101,13 @@ export default function AuthPage({ settings, themeName, onAuthSuccess }: AuthPag
               type="password"
               autoComplete="current-password"
               onChange={(event) => auth.setAuthPassword(event.target.value)}
-              className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              className="tech-control h-11 w-full rounded-full px-3.5 text-sm outline-none"
               placeholder="输入密码"
             />
           </label>
 
           {auth.authError && (
-            <div className="rounded-md border border-destructive/35 bg-destructive/10 px-3 py-2.5 text-sm text-destructive" role="alert">
+            <div className="danger-action rounded-[1rem] px-3 py-2.5 text-sm" role="alert">
               {auth.authError}
             </div>
           )}
@@ -115,7 +115,7 @@ export default function AuthPage({ settings, themeName, onAuthSuccess }: AuthPag
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-input bg-card px-4 text-sm font-semibold shadow-sm transition hover:border-primary/50 hover:bg-primary/5 disabled:opacity-55"
+              className="soft-action inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold disabled:opacity-55"
               disabled={auth.isAuthenticating}
               onClick={() => void handleAuthSubmit('register')}
             >
@@ -124,7 +124,7 @@ export default function AuthPage({ settings, themeName, onAuthSuccess }: AuthPag
             </button>
             <button
               type="submit"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-55"
+              className="primary-action inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold disabled:opacity-55"
               disabled={auth.isAuthenticating}
             >
               <LogIn aria-hidden="true" size={17} strokeWidth={2.25} />
@@ -132,7 +132,7 @@ export default function AuthPage({ settings, themeName, onAuthSuccess }: AuthPag
             </button>
           </div>
 
-          <div className="flex items-start gap-3 rounded-md border border-border bg-muted/45 px-3 py-3 text-sm leading-6 text-muted-foreground">
+          <div className="chip flex items-start gap-3 rounded-[1rem] px-3 py-3 text-sm leading-6 text-muted-foreground">
             <ShieldCheck aria-hidden="true" size={18} strokeWidth={2.15} className="mt-0.5 shrink-0 text-primary" />
             <span>账号仅用于同步本机连接配置和偏好，聊天记录仍保存在当前设备。</span>
           </div>

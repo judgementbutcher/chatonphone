@@ -208,14 +208,14 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       {(drawers.isConversationDrawerOpen || drawers.isSettingsDrawerOpen) && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 animate-fade-up bg-slate-950/[0.42] backdrop-blur-md lg:hidden"
           aria-label="关闭面板"
           onClick={drawers.closeDrawers}
         />
       )}
 
       <aside
-        className="hidden w-[312px] shrink-0 border-r border-border bg-card/92 lg:block"
+        className="soft-divider-right hidden w-[320px] shrink-0 bg-card/[0.48] backdrop-blur-2xl lg:block"
         aria-label="会话侧边栏"
         aria-hidden={drawers.isConversationDrawerOpen ? true : undefined}
       >
@@ -225,11 +225,11 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       {drawers.isConversationDrawerOpen && (
         <div
           id="conversation-drawer"
-          className="fixed inset-y-0 left-0 z-50 w-[88vw] max-w-[340px] border-r border-border bg-card shadow-2xl transition-transform duration-200 lg:hidden"
+          className="drawer-slide-left glass-panel-strong fixed inset-y-0 left-0 z-50 w-[88vw] max-w-[348px] rounded-r-[1.6rem] lg:hidden"
         >
           <button
             type="button"
-            className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background shadow-sm"
+            className="soft-action absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full"
             aria-label="关闭会话"
             onClick={drawers.closeDrawers}
           >
@@ -240,10 +240,10 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       )}
 
       <section className="flex min-w-0 flex-1 flex-col" aria-label="聊天工作区">
-        <header className="flex min-h-16 items-center gap-3 border-b border-border bg-card/86 px-3 backdrop-blur-xl sm:px-5" role="banner">
+        <header className="soft-divider-bottom flex min-h-16 items-center gap-3 bg-card/40 px-3 backdrop-blur-2xl sm:px-5" role="banner">
           <button
             type="button"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background shadow-sm transition hover:border-primary/45 hover:bg-primary/5 lg:hidden"
+            className="soft-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:hidden"
             aria-label="打开会话"
             aria-controls="conversation-drawer"
             aria-expanded={drawers.isConversationDrawerOpen}
@@ -254,8 +254,8 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-base font-semibold tracking-normal sm:text-lg">ChatOnPhone</h1>
-              <span className="hidden rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary sm:inline-flex">
+              <h1 className="truncate text-base font-semibold tracking-[-0.02em] sm:text-lg">ChatOnPhone</h1>
+              <span className="chip hidden rounded-full px-2.5 py-1 text-[11px] font-semibold text-primary sm:inline-flex">
                 {activeProvider?.name || '未配置'}
               </span>
             </div>
@@ -270,26 +270,26 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
                 aria-label="桌面快捷模型"
                 value={settings.model}
                 onChange={(event) => handleQuickModelSelect(event.target.value)}
-                className="h-10 max-w-[260px] rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+                className="tech-control h-10 max-w-[260px] rounded-full px-3.5 text-sm outline-none"
               >
                 {quickModelOptions.map((model) => (
                   <option key={model} value={model}>{model}</option>
                 ))}
               </select>
             ) : (
-              <span className="max-w-[220px] truncate rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <span className="chip max-w-[220px] truncate rounded-full px-3.5 py-2 text-sm text-muted-foreground">
                 {settings.model || '未设置模型'}
               </span>
             )}
-            <div className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm shadow-sm">
-              <span className={`h-2 w-2 rounded-full ${chatGeneration.state.isGenerating ? 'bg-accent' : 'bg-primary'}`} />
+            <div className="chip inline-flex h-10 items-center gap-2 rounded-full px-3.5 text-sm">
+              <span className={`status-dot h-2 w-2 rounded-full ${chatGeneration.state.isGenerating ? 'bg-accent' : 'bg-primary'}`} />
               {generationStateLabel}
             </div>
           </div>
 
           <button
             type="button"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background shadow-sm transition hover:border-primary/45 hover:bg-primary/5 xl:hidden"
+            className="soft-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full xl:hidden"
             aria-label="打开设置"
             aria-controls="settings-drawer"
             aria-expanded={drawers.isSettingsDrawerOpen}
@@ -299,7 +299,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
           </button>
         </header>
 
-        <div className="flex border-b border-border bg-background/72 px-3 py-2 md:hidden">
+        <div className="soft-divider-bottom flex bg-background/[0.38] px-3 py-2 backdrop-blur-xl md:hidden">
           <label className="sr-only" htmlFor="quick-model-select-mobile">快捷模型</label>
           {quickModelOptions.length > 0 ? (
             <select
@@ -307,19 +307,19 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
               aria-label="快捷模型"
               value={settings.model}
               onChange={(event) => handleQuickModelSelect(event.target.value)}
-              className="h-10 min-w-0 flex-1 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+              className="tech-control h-10 min-w-0 flex-1 rounded-full px-3.5 text-sm outline-none"
             >
               {quickModelOptions.map((model) => (
                 <option key={model} value={model}>{model}</option>
               ))}
             </select>
           ) : (
-            <span className="min-w-0 flex-1 truncate rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+            <span className="chip min-w-0 flex-1 truncate rounded-full px-3.5 py-2 text-sm text-muted-foreground">
               {settings.model || '未设置模型'}
             </span>
           )}
-          <div className="ml-2 inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm">
-            <span className={`h-2 w-2 rounded-full ${chatGeneration.state.isGenerating ? 'bg-accent' : 'bg-primary'}`} />
+          <div className="chip ml-2 inline-flex h-10 items-center gap-2 rounded-full px-3 text-sm">
+            <span className={`status-dot h-2 w-2 rounded-full ${chatGeneration.state.isGenerating ? 'bg-accent' : 'bg-primary'}`} />
             {generationStateLabel}
           </div>
         </div>
@@ -343,7 +343,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       </section>
 
       <aside
-        className="hidden w-[360px] shrink-0 border-l border-border bg-card/92 xl:block"
+        className="soft-divider-left hidden w-[368px] shrink-0 bg-card/[0.48] backdrop-blur-2xl xl:block"
         aria-label="设置侧边栏"
         aria-hidden={drawers.isSettingsDrawerOpen ? true : undefined}
       >
@@ -353,11 +353,11 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       {drawers.isSettingsDrawerOpen && (
         <div
           id="settings-drawer"
-          className="fixed inset-y-0 right-0 z-50 w-[90vw] max-w-[390px] border-l border-border bg-card shadow-2xl transition-transform duration-200 xl:hidden"
+          className="drawer-slide-right glass-panel-strong fixed inset-y-0 right-0 z-50 w-[90vw] max-w-[398px] rounded-l-[1.6rem] xl:hidden"
         >
           <button
             type="button"
-            className="absolute left-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background shadow-sm"
+            className="soft-action absolute left-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full"
             aria-label="关闭设置"
             onClick={drawers.closeDrawers}
           >
@@ -369,7 +369,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
       <button
         type="button"
-        className="fixed bottom-[106px] right-3 z-30 hidden h-10 items-center gap-2 rounded-full border border-border bg-card px-3 text-sm font-medium shadow-lg transition hover:border-primary/45 hover:bg-primary/5 lg:inline-flex xl:hidden"
+        className="soft-action fixed bottom-[106px] right-3 z-30 hidden h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold lg:inline-flex xl:hidden"
         aria-label="打开设置"
         onClick={drawers.openSettingsDrawer}
       >
@@ -377,7 +377,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
         设置
       </button>
 
-      <div className="pointer-events-none fixed left-1/2 top-4 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card/85 px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur lg:flex xl:hidden">
+      <div className="chip pointer-events-none fixed left-1/2 top-4 hidden -translate-x-1/2 items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground backdrop-blur lg:flex xl:hidden">
         <Sparkles aria-hidden="true" size={14} strokeWidth={2.1} className="text-primary" />
         <span>{activeProvider?.name || '未配置供应商'} · {settings.model || '未设置模型'}</span>
       </div>

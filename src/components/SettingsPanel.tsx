@@ -52,10 +52,10 @@ function Field({
   );
 }
 
-const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10';
+const inputClass = 'tech-control h-10 w-full rounded-full px-3.5 text-sm outline-none';
 const selectClass = inputClass;
-const secondaryButtonClass = 'inline-flex h-10 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-semibold shadow-sm transition hover:border-primary/45 hover:bg-primary/5 disabled:opacity-45';
-const destructiveButtonClass = 'inline-flex h-10 items-center justify-center gap-2 rounded-md border border-destructive/30 bg-destructive/8 px-3 text-sm font-semibold text-destructive shadow-sm transition hover:bg-destructive/12 disabled:opacity-45';
+const secondaryButtonClass = 'soft-action inline-flex h-10 items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold disabled:opacity-45';
+const destructiveButtonClass = 'danger-action inline-flex h-10 items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold disabled:opacity-45';
 
 export default function SettingsPanel({
   settings,
@@ -248,9 +248,9 @@ export default function SettingsPanel({
         onSave(nextSettings);
       }}
     >
-      <div className="border-b border-border px-5 pb-4 pt-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Settings</p>
-        <h2 className="mt-1 text-lg font-semibold tracking-normal">连接与模型</h2>
+      <div className="soft-divider-bottom px-5 pb-4 pt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/80">Settings</p>
+        <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em]">连接与模型</h2>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 scrollbar-thin">
@@ -303,7 +303,7 @@ export default function SettingsPanel({
           </div>
 
           {(modelFetchStatus || providerTestStatus) && (
-            <div className="space-y-2 rounded-md border border-border bg-muted/45 px-3 py-2 text-sm text-muted-foreground">
+            <div className="chip space-y-2 rounded-[1rem] px-3 py-2 text-sm text-muted-foreground">
               {modelFetchStatus && <p role="status">{modelFetchStatus}</p>}
               {providerTestStatus && <p role="status">{providerTestStatus}</p>}
             </div>
@@ -345,12 +345,12 @@ export default function SettingsPanel({
           </Field>
         </fieldset>
 
-        <fieldset className="mt-7 space-y-4 border-t border-border pt-5">
+        <fieldset className="soft-divider-top mt-7 space-y-4 pt-5">
           <legend className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <Moon aria-hidden="true" size={16} strokeWidth={2.2} className="text-primary" />
             外观
           </legend>
-          <label className="flex items-center justify-between gap-4 rounded-md border border-border bg-background px-3 py-3">
+          <label className="tech-control flex items-center justify-between gap-4 rounded-[1rem] px-3 py-3">
             <span className="text-sm font-medium">暗色模式</span>
             <input
               className="h-4 w-4 accent-[hsl(var(--primary))]"
@@ -361,7 +361,7 @@ export default function SettingsPanel({
           </label>
         </fieldset>
 
-        <fieldset className="mt-7 space-y-4 border-t border-border pt-5">
+        <fieldset className="soft-divider-top mt-7 space-y-4 pt-5">
           <legend className="mb-3 text-sm font-semibold">生成</legend>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Temperature">
@@ -386,7 +386,7 @@ export default function SettingsPanel({
               />
             </Field>
           </div>
-          <label className="flex items-center justify-between gap-4 rounded-md border border-border bg-background px-3 py-3">
+          <label className="tech-control flex items-center justify-between gap-4 rounded-[1rem] px-3 py-3">
             <span className="text-sm font-medium">Streaming enabled</span>
             <input
               className="h-4 w-4 accent-[hsl(var(--primary))]"
@@ -397,9 +397,9 @@ export default function SettingsPanel({
           </label>
         </fieldset>
 
-        <fieldset className="mt-7 space-y-3 border-t border-border pt-5">
+        <fieldset className="soft-divider-top mt-7 space-y-3 pt-5">
           <legend className="mb-3 text-sm font-semibold">账号同步</legend>
-          <div className="rounded-md border border-border bg-background px-3 py-3">
+          <div className="tech-control rounded-[1rem] px-3 py-3">
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm text-muted-foreground">当前账号</span>
               <strong className="max-w-[180px] truncate text-sm font-semibold">{syncAccount.accountId || '未登录'}</strong>
@@ -409,8 +409,8 @@ export default function SettingsPanel({
         </fieldset>
       </div>
 
-      <div className="grid gap-2 border-t border-border bg-card px-5 py-4">
-        <button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90">
+      <div className="soft-divider-top grid gap-2 bg-card/[0.35] px-5 py-4 backdrop-blur-xl">
+        <button type="submit" className="primary-action inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold">
           <Save aria-hidden="true" size={17} strokeWidth={2.25} />
           保存设置
         </button>

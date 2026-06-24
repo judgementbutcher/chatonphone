@@ -22,15 +22,15 @@ function formatConversationDate(timestamp: number) {
 export default function ConversationList({ conversations, activeId, onSelect, onNew, onRename, onDelete }: Props) {
   return (
     <aside className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="border-b border-border px-4 pb-4 pt-5">
+      <div className="soft-divider-bottom px-4 pb-4 pt-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Conversations</p>
-            <h2 className="mt-1 text-lg font-semibold tracking-normal">历史记录</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/80">Conversations</p>
+            <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em]">历史记录</h2>
           </div>
           <button
             type="button"
-            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+            className="primary-action inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-sm font-semibold"
             onClick={onNew}
           >
             <MessageSquarePlus aria-hidden="true" size={17} strokeWidth={2.25} />
@@ -44,8 +44,8 @@ export default function ConversationList({ conversations, activeId, onSelect, on
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 scrollbar-thin" aria-label="会话列表">
         {conversations.length === 0 && (
-          <div className="mt-8 rounded-lg border border-dashed border-border bg-muted/35 px-4 py-8 text-center">
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-md border border-border bg-card">
+          <div className="glass-panel mt-8 rounded-[1.3rem] px-4 py-8 text-center">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.16)]">
               <MessageSquare aria-hidden="true" size={20} strokeWidth={2.15} className="text-primary" />
             </div>
             <p className="mt-3 text-sm text-muted-foreground">暂无会话</p>
@@ -58,8 +58,10 @@ export default function ConversationList({ conversations, activeId, onSelect, on
 
             return (
               <article
-                className={`rounded-lg border bg-card transition ${
-                  isActive ? 'border-primary/55 shadow-sm ring-2 ring-primary/10' : 'border-transparent hover:border-border hover:bg-muted/35'
+                className={`group overflow-hidden rounded-[1.15rem] transition duration-200 ${
+                  isActive
+                    ? 'bg-primary/10 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.28),0_14px_36px_hsl(var(--primary)/0.12)]'
+                    : 'bg-card/[0.22] hover:bg-card/[0.56] hover:shadow-[inset_0_0_0_1px_hsl(var(--hairline)/0.42),0_12px_30px_hsl(var(--foreground)/0.055)]'
                 }`}
                 key={conversation.id}
               >
@@ -78,8 +80,8 @@ export default function ConversationList({ conversations, activeId, onSelect, on
                   </span>
                 </button>
 
-                <div className="flex items-center gap-2 border-t border-border/70 px-2.5 py-2">
-                  <label className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/10">
+                <div className="soft-divider-top flex items-center gap-2 px-2.5 py-2 opacity-80 transition group-hover:opacity-100">
+                  <label className="tech-control flex min-w-0 flex-1 items-center gap-2 rounded-full px-2.5 py-1.5 text-xs">
                     <Pencil aria-hidden="true" size={13} strokeWidth={2.15} className="shrink-0 text-muted-foreground" />
                     <input
                       aria-label={`重命名 ${conversation.title}`}
@@ -91,7 +93,7 @@ export default function ConversationList({ conversations, activeId, onSelect, on
 
                   <button
                     type="button"
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-destructive/25 bg-destructive/5 text-destructive transition hover:bg-destructive/12"
+                    className="danger-action inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                     aria-label={`删除 ${conversation.title}`}
                     onClick={() => onDelete(conversation.id)}
                   >

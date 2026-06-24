@@ -12,7 +12,7 @@ export default function App() {
     document.documentElement.dataset.theme = themeName;
     document.documentElement.classList.toggle('dark', settings.darkMode);
     document.documentElement.style.colorScheme = themeName;
-    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', settings.darkMode ? '#101418' : '#f6f7fb');
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', settings.darkMode ? '#08111f' : '#edf6fb');
   }, [settings.darkMode, themeName]);
 
   if (!hasAuthenticatedAccount(settings)) {
