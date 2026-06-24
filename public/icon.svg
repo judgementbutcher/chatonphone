@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ChatOnPhone icon">
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <path d="M144 144h224c22.1 0 40 17.9 40 40v112c0 22.1-17.9 40-40 40H241.4L176 392v-56h-32c-22.1 0-40-17.9-40-40V184c0-22.1 17.9-40 40-40Z" fill="#f8fafc"/>
+  <circle cx="188" cy="240" r="18" fill="#0891b2"/>
+  <circle cx="256" cy="240" r="18" fill="#16a34a"/>
+  <circle cx="324" cy="240" r="18" fill="#ca8a04"/>
+</svg>

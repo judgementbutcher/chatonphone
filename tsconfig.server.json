@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "skipLibCheck": true,
+    "strict": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "./server-dist",
+    "rootDir": "./worker",
+    "types": []
+  },
+  "include": ["worker/proxy.ts"]
+}

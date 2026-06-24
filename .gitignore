@@ -1,0 +1,15 @@
+.worktrees/
+node_modules/
+dist/
+server-dist/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+playwright-report/
+test-results/
+.superpowers/
+.agents/
+.codex/
+.trellis/
+AGENT.md
+AGENTS.md
