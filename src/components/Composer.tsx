@@ -1,4 +1,4 @@
-import { FileText, ImagePlus, Send, Square } from 'lucide-react';
+import { FileText, ImagePlus, Send, Square, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 interface SendPayload {
@@ -8,6 +8,7 @@ interface SendPayload {
 
 interface Props {
   isGenerating: boolean;
+  disabled?: boolean;
   draftText: string;
   onDraftTextChange: (value: string) => void;
   onSend: (payload: SendPayload) => boolean | void | Promise<boolean | void>;
@@ -34,7 +35,7 @@ function revokePreviewUrl(previewUrl: string) {
   }
 }
 
-export default function Composer({ isGenerating, draftText, onDraftTextChange, onSend, onStop }: Props) {
+export default function Composer({ isGenerating, disabled = false, draftText, onDraftTextChange, onSend, onStop }: Props) {
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const pendingFilesRef = useRef<PendingFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -64,13 +65,14 @@ export default function Composer({ isGenerating, draftText, onDraftTextChange, o
     }
   }
 
-  // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
+    if (!textarea) {
+      return;
+    }
 
     textarea.style.height = 'auto';
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 144)}px`;
   }, [draftText]);
 
   function removePendingFile(id: string) {
@@ -89,25 +91,32 @@ export default function Composer({ isGenerating, draftText, onDraftTextChange, o
 
   if (isGenerating) {
     return (
-      <div className="border-t bg-card p-4 flex justify-center">
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/20"
-          onClick={onStop}
-        >
-          <Square aria-hidden="true" size={16} fill="currentColor" strokeWidth={0} />
-          停止
-        </button>
+      <div className="border-t border-border bg-card/92 px-3 py-3 shadow-[0_-18px_40px_rgb(15_23_42_/_0.08)] backdrop-blur sm:px-5">
+        <div className="mx-auto flex max-w-4xl justify-center">
+          <button
+            type="button"
+            className="inline-flex h-11 items-center gap-2 rounded-md border border-destructive/35 bg-destructive/10 px-4 text-sm font-semibold text-destructive transition hover:bg-destructive/15"
+            aria-label="停止"
+            onClick={onStop}
+          >
+            <Square aria-hidden="true" size={15} fill="currentColor" strokeWidth={0} />
+            停止
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <form
-      className="border-t bg-card p-4"
+      className="border-t border-border bg-card/94 px-3 py-3 shadow-[0_-18px_40px_rgb(15_23_42_/_0.08)] backdrop-blur sm:px-5"
       onSubmit={async (event) => {
         event.preventDefault();
         try {
+          if (disabled) {
+            return;
+          }
+
           const result = await onSend({ text: draftText, files: pendingFiles.map((pendingFile) => pendingFile.file) });
 
           if (result !== false) {
@@ -115,77 +124,76 @@ export default function Composer({ isGenerating, draftText, onDraftTextChange, o
             clearPendingFiles();
           }
         } catch {
-          // Keep the draft so the caller can surface the error without losing user input.
+          // Keep the draft when the caller surfaces a send error.
         }
       }}
     >
-      <input
-        ref={fileInputRef}
-        className="sr-only"
-        aria-label="选择文件"
-        type="file"
-        accept="image/*,.txt,.md,.markdown,.json,.csv,.html,.htm,.css,.js,.jsx,.ts,.tsx,.xml,.yaml,.yml,.log,text/*,application/json"
-        multiple
-        onChange={(event) => {
-          const selectedFiles = Array.from(event.target.files ?? []);
-          for (const pendingFile of pendingFilesRef.current) {
-            revokePreviewUrl(pendingFile.previewUrl);
-          }
-          setTrackedPendingFiles(selectedFiles.map((file) => ({
-            id: `${file.name}-${file.size}-${file.lastModified}`,
-            file,
-            previewUrl: createPreviewUrl(file)
-          })));
-        }}
-      />
+      <div className="mx-auto max-w-4xl">
+        <input
+          ref={fileInputRef}
+          className="sr-only"
+          aria-label="选择文件"
+          type="file"
+          accept="image/*,.txt,.md,.markdown,.json,.csv,.html,.htm,.css,.js,.jsx,.ts,.tsx,.xml,.yaml,.yml,.log,text/*,application/json"
+          multiple
+          onChange={(event) => {
+            const selectedFiles = Array.from(event.target.files ?? []);
+            for (const pendingFile of pendingFilesRef.current) {
+              revokePreviewUrl(pendingFile.previewUrl);
+            }
+            setTrackedPendingFiles(selectedFiles.map((file) => ({
+              id: `${file.name}-${file.size}-${file.lastModified}`,
+              file,
+              previewUrl: createPreviewUrl(file)
+            })));
+          }}
+        />
 
-      {pendingFiles.length > 0 && (
-        <div className="mb-3 flex gap-2 overflow-x-auto pb-2" aria-label="待发送文件">
-          {pendingFiles.map((pendingFile) => (
-            <div key={pendingFile.id} className="relative flex-shrink-0">
-              {pendingFile.previewUrl ? (
-                <img
-                  src={pendingFile.previewUrl}
-                  alt={pendingFile.file.name}
-                  className="h-20 w-20 rounded-md border object-cover"
-                />
-              ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-md border bg-muted" aria-hidden="true">
-                  <FileText size={24} strokeWidth={2.1} />
-                </div>
-              )}
-              <button
-                type="button"
-                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border bg-destructive text-xs font-semibold text-destructive-foreground hover:bg-destructive/90"
-                aria-label={`移除文件 ${pendingFile.file.name}`}
-                onClick={() => removePendingFile(pendingFile.id)}
-              >
-                ×
-              </button>
-              <p className="mt-1 w-20 truncate text-xs text-muted-foreground">{pendingFile.file.name}</p>
-            </div>
-          ))}
-        </div>
-      )}
+        {pendingFiles.length > 0 && (
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-thin" aria-label="待发送文件">
+            {pendingFiles.map((pendingFile) => (
+              <div key={pendingFile.id} className="group relative flex w-[88px] shrink-0 flex-col">
+                {pendingFile.previewUrl ? (
+                  <img
+                    src={pendingFile.previewUrl}
+                    alt={pendingFile.file.name}
+                    className="h-16 w-16 rounded-md border border-border object-cover shadow-sm"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-md border border-border bg-muted shadow-sm" aria-hidden="true">
+                    <FileText size={21} strokeWidth={2.1} className="text-primary" />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="absolute right-5 top-[-6px] inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition hover:text-destructive"
+                  aria-label={`移除文件 ${pendingFile.file.name}`}
+                  onClick={() => removePendingFile(pendingFile.id)}
+                >
+                  <X aria-hidden="true" size={13} strokeWidth={2.4} />
+                </button>
+                <p className="mt-1 w-16 truncate text-xs text-muted-foreground">{pendingFile.file.name}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
-      <div className="flex items-end gap-2">
-        <button
-          type="button"
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border bg-background hover:bg-accent hover:text-accent-foreground"
-          aria-label="添加文件"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <ImagePlus aria-hidden="true" size={20} strokeWidth={2.25} />
-        </button>
+        <div className="flex items-end gap-2 rounded-lg border border-border bg-background p-2 shadow-sm focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            aria-label="添加文件"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImagePlus aria-hidden="true" size={21} strokeWidth={2.25} />
+          </button>
 
-        <div className="flex-1">
           <textarea
             ref={textareaRef}
             aria-label="消息内容"
             value={draftText}
             onChange={(event) => onDraftTextChange(event.target.value)}
             onKeyDown={(event) => {
-              // Ctrl/Cmd + Enter to send
               if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                 event.preventDefault();
                 const form = event.currentTarget.form;
@@ -195,20 +203,19 @@ export default function Composer({ isGenerating, draftText, onDraftTextChange, o
               }
             }}
             rows={1}
-            placeholder="输入消息"
-            className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            style={{ maxHeight: '128px' }}
+            placeholder="输入消息，Ctrl + Enter 发送"
+            className="max-h-36 min-h-10 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-6 outline-none placeholder:text-muted-foreground"
           />
-        </div>
 
-        <button
-          type="submit"
-          disabled={draftText.trim().length === 0 && pendingFiles.length === 0}
-          className="inline-flex h-10 flex-shrink-0 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-        >
-          <Send aria-hidden="true" size={18} strokeWidth={2.35} />
-          发送
-        </button>
+          <button
+            type="submit"
+            disabled={disabled || (draftText.trim().length === 0 && pendingFiles.length === 0)}
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-45 sm:px-4"
+          >
+            <Send aria-hidden="true" size={17} strokeWidth={2.35} />
+            发送
+          </button>
+        </div>
       </div>
     </form>
   );

@@ -1,4 +1,4 @@
-import { Activity, DatabaseZap, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { Activity, DatabaseZap, Moon, Plus, RefreshCw, Save, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { AppSettings, ProviderSettings } from '../domain/types';
 import { defaultProvider, defaultSettings, getActiveProviderSettings } from '../settings/settingsStore';
@@ -36,6 +36,26 @@ function normalizeDraft(settings: AppSettings): AppSettings {
     providers: providersFrom(settings)
   });
 }
+
+function Field({
+  label,
+  children
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const inputClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10';
+const selectClass = inputClass;
+const secondaryButtonClass = 'inline-flex h-10 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-semibold shadow-sm transition hover:border-primary/45 hover:bg-primary/5 disabled:opacity-45';
+const destructiveButtonClass = 'inline-flex h-10 items-center justify-center gap-2 rounded-md border border-destructive/30 bg-destructive/8 px-3 text-sm font-semibold text-destructive shadow-sm transition hover:bg-destructive/12 disabled:opacity-45';
 
 export default function SettingsPanel({
   settings,
@@ -217,7 +237,7 @@ export default function SettingsPanel({
 
   return (
     <form
-      className="settingsPanel"
+      className="flex h-full min-h-0 flex-col"
       onSubmit={(event) => {
         event.preventDefault();
         const nextSettings = currentDraftSettings();
@@ -228,150 +248,175 @@ export default function SettingsPanel({
         onSave(nextSettings);
       }}
     >
-      <div className="panelHeader settingsHeader">
-        <div>
-          <span className="eyebrow">设置</span>
-          <h2>连接与模型</h2>
-        </div>
+      <div className="border-b border-border px-5 pb-4 pt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Settings</p>
+        <h2 className="mt-1 text-lg font-semibold tracking-normal">连接与模型</h2>
       </div>
-      <fieldset className="settingsGroup">
-        <legend>供应商</legend>
-        <label>
-          供应商
-          <select value={activeProvider.id} onChange={(event) => handleProviderSelect(event.target.value)}>
-            {providers.map((provider) => (
-              <option key={provider.id} value={provider.id}>{provider.name}</option>
-            ))}
-          </select>
-        </label>
-        <div className="providerActions">
-          <button type="button" className="secondaryButton" onClick={handleAddProvider}>
-            <Plus aria-hidden="true" size={17} strokeWidth={2.25} />
-            新增供应商
-          </button>
-          <button type="button" className="destructiveButton subtleButton" disabled={providers.length <= 1} onClick={handleDeleteProvider}>
-            <Trash2 aria-hidden="true" size={17} strokeWidth={2.25} />
-            删除供应商
-          </button>
-        </div>
-        <label>
-          供应商名称
-          <input value={activeProvider.name} onChange={(event) => updateActiveProvider({ name: event.target.value })} />
-        </label>
-        <label>
-          API Base URL
-          <input value={activeProvider.apiBaseUrl} onChange={(event) => updateActiveProvider({ apiBaseUrl: event.target.value })} />
-        </label>
-        <label>
-          API Key
-          <input value={activeProvider.apiKey} type="password" onChange={(event) => updateActiveProvider({ apiKey: event.target.value })} />
-        </label>
-        <div className="providerActions">
-          <button type="button" className="secondaryButton" disabled={!onFetchModels || isLoadingModels} onClick={handleFetchModels}>
-            <RefreshCw aria-hidden="true" size={17} strokeWidth={2.25} />
-            {isLoadingModels ? '拉取中' : '拉取模型列表'}
-          </button>
-          <button type="button" className="secondaryButton" disabled={!onTestProvider || isTestingProvider} onClick={handleTestProvider}>
-            <Activity aria-hidden="true" size={17} strokeWidth={2.25} />
-            {isTestingProvider ? '测试中' : '测试供应商'}
-          </button>
-          {modelFetchStatus && <p className="syncStatus" role="status">{modelFetchStatus}</p>}
-          {providerTestStatus && <p className="syncStatus" role="status">{providerTestStatus}</p>}
-        </div>
-        <label>
-          模型列表
-          <select
-            value={activeModelOptions.includes(selectedModel) ? selectedModel : ''}
-            disabled={activeModelOptions.length === 0}
-            onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value, model: event.target.value })}
-          >
-            {activeModelOptions.length === 0 && <option value="">暂无模型列表</option>}
-            {activeModelOptions.map((model) => (
-              <option key={model} value={model}>{model}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          模型名
-          {activeModelOptions.length > 0 ? (
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 scrollbar-thin">
+        <fieldset className="space-y-4">
+          <legend className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <SlidersHorizontal aria-hidden="true" size={16} strokeWidth={2.2} className="text-primary" />
+            供应商
+          </legend>
+
+          <Field label="供应商">
+            <select className={selectClass} value={activeProvider.id} onChange={(event) => handleProviderSelect(event.target.value)}>
+              {providers.map((provider) => (
+                <option key={provider.id} value={provider.id}>{provider.name}</option>
+              ))}
+            </select>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" className={secondaryButtonClass} onClick={handleAddProvider}>
+              <Plus aria-hidden="true" size={16} strokeWidth={2.25} />
+              新增供应商
+            </button>
+            <button type="button" className={destructiveButtonClass} disabled={providers.length <= 1} onClick={handleDeleteProvider}>
+              <Trash2 aria-hidden="true" size={16} strokeWidth={2.25} />
+              删除供应商
+            </button>
+          </div>
+
+          <Field label="供应商名称">
+            <input className={inputClass} value={activeProvider.name} onChange={(event) => updateActiveProvider({ name: event.target.value })} />
+          </Field>
+
+          <Field label="API Base URL">
+            <input className={inputClass} value={activeProvider.apiBaseUrl} onChange={(event) => updateActiveProvider({ apiBaseUrl: event.target.value })} />
+          </Field>
+
+          <Field label="API Key">
+            <input className={inputClass} value={activeProvider.apiKey} type="password" onChange={(event) => updateActiveProvider({ apiKey: event.target.value })} />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" className={secondaryButtonClass} disabled={!onFetchModels || isLoadingModels} onClick={handleFetchModels}>
+              <RefreshCw aria-hidden="true" size={16} strokeWidth={2.25} />
+              {isLoadingModels ? '拉取中' : '拉取模型列表'}
+            </button>
+            <button type="button" className={secondaryButtonClass} disabled={!onTestProvider || isTestingProvider} onClick={handleTestProvider}>
+              <Activity aria-hidden="true" size={16} strokeWidth={2.25} />
+              {isTestingProvider ? '测试中' : '测试供应商'}
+            </button>
+          </div>
+
+          {(modelFetchStatus || providerTestStatus) && (
+            <div className="space-y-2 rounded-md border border-border bg-muted/45 px-3 py-2 text-sm text-muted-foreground">
+              {modelFetchStatus && <p role="status">{modelFetchStatus}</p>}
+              {providerTestStatus && <p role="status">{providerTestStatus}</p>}
+            </div>
+          )}
+
+          <Field label="模型列表">
             <select
-              value={selectedModel}
+              className={selectClass}
+              value={activeModelOptions.includes(selectedModel) ? selectedModel : ''}
+              disabled={activeModelOptions.length === 0}
               onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value, model: event.target.value })}
             >
-              {!selectedModelIsListed && <option value={selectedModel}>{selectedModel}</option>}
+              {activeModelOptions.length === 0 && <option value="">暂无模型列表</option>}
               {activeModelOptions.map((model) => (
                 <option key={model} value={model}>{model}</option>
               ))}
             </select>
-          ) : (
+          </Field>
+
+          <Field label="模型名">
+            {activeModelOptions.length > 0 ? (
+              <select
+                className={selectClass}
+                value={selectedModel}
+                onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value, model: event.target.value })}
+              >
+                {!selectedModelIsListed && <option value={selectedModel}>{selectedModel}</option>}
+                {activeModelOptions.map((model) => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className={inputClass}
+                value={selectedModel}
+                onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value, model: event.target.value })}
+              />
+            )}
+          </Field>
+        </fieldset>
+
+        <fieldset className="mt-7 space-y-4 border-t border-border pt-5">
+          <legend className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <Moon aria-hidden="true" size={16} strokeWidth={2.2} className="text-primary" />
+            外观
+          </legend>
+          <label className="flex items-center justify-between gap-4 rounded-md border border-border bg-background px-3 py-3">
+            <span className="text-sm font-medium">暗色模式</span>
             <input
-              value={selectedModel}
-              onChange={(event) => updateDraft({ ...draft, selectedModel: event.target.value, model: event.target.value })}
-            />
-          )}
-        </label>
-      </fieldset>
-      <fieldset className="settingsGroup">
-        <legend>外观</legend>
-        <label className="toggleField">
-          <span>暗色模式</span>
-          <input
-            checked={Boolean(draft.darkMode)}
-            type="checkbox"
-            onChange={(event) => updateDraft({ ...draft, darkMode: event.target.checked })}
-          />
-        </label>
-      </fieldset>
-      <fieldset className="settingsGroup">
-        <legend>生成</legend>
-        <div className="splitFields">
-          <label>
-            Temperature
-            <input
-              value={draft.temperature}
-              type="number"
-              min="0"
-              max="2"
-              step="0.1"
-              onChange={(event) => updateDraft({ ...draft, temperature: event.target.valueAsNumber })}
-            />
-          </label>
-          <label>
-            Max tokens
-            <input
-              value={draft.maxTokens}
-              type="number"
-              min="1"
-              step="1"
-              onChange={(event) => updateDraft({ ...draft, maxTokens: event.target.valueAsNumber })}
+              className="h-4 w-4 accent-[hsl(var(--primary))]"
+              checked={Boolean(draft.darkMode)}
+              type="checkbox"
+              onChange={(event) => updateDraft({ ...draft, darkMode: event.target.checked })}
             />
           </label>
-        </div>
-        <label className="toggleField">
-          <span>Streaming enabled</span>
-          <input
-            checked={draft.stream}
-            type="checkbox"
-            onChange={(event) => updateDraft({ ...draft, stream: event.target.checked })}
-          />
-        </label>
-      </fieldset>
-      <fieldset className="settingsGroup">
-        <legend>账号同步</legend>
-        <div className="accountSummary">
-          <span>当前账号</span>
-          <strong>{syncAccount.accountId || '未登录'}</strong>
-        </div>
-        {syncStatus && <p className="syncStatus" role="status">{syncStatus}</p>}
-      </fieldset>
-      <div className="settingsActions">
-        <button type="submit" className="primaryButton">
+        </fieldset>
+
+        <fieldset className="mt-7 space-y-4 border-t border-border pt-5">
+          <legend className="mb-3 text-sm font-semibold">生成</legend>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Temperature">
+              <input
+                className={inputClass}
+                value={draft.temperature}
+                type="number"
+                min="0"
+                max="2"
+                step="0.1"
+                onChange={(event) => updateDraft({ ...draft, temperature: event.target.valueAsNumber })}
+              />
+            </Field>
+            <Field label="Max tokens">
+              <input
+                className={inputClass}
+                value={draft.maxTokens}
+                type="number"
+                min="1"
+                step="1"
+                onChange={(event) => updateDraft({ ...draft, maxTokens: event.target.valueAsNumber })}
+              />
+            </Field>
+          </div>
+          <label className="flex items-center justify-between gap-4 rounded-md border border-border bg-background px-3 py-3">
+            <span className="text-sm font-medium">Streaming enabled</span>
+            <input
+              className="h-4 w-4 accent-[hsl(var(--primary))]"
+              checked={draft.stream}
+              type="checkbox"
+              onChange={(event) => updateDraft({ ...draft, stream: event.target.checked })}
+            />
+          </label>
+        </fieldset>
+
+        <fieldset className="mt-7 space-y-3 border-t border-border pt-5">
+          <legend className="mb-3 text-sm font-semibold">账号同步</legend>
+          <div className="rounded-md border border-border bg-background px-3 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-muted-foreground">当前账号</span>
+              <strong className="max-w-[180px] truncate text-sm font-semibold">{syncAccount.accountId || '未登录'}</strong>
+            </div>
+            {syncStatus && <p className="mt-2 text-sm text-muted-foreground" role="status">{syncStatus}</p>}
+          </div>
+        </fieldset>
+      </div>
+
+      <div className="grid gap-2 border-t border-border bg-card px-5 py-4">
+        <button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90">
           <Save aria-hidden="true" size={17} strokeWidth={2.25} />
           保存设置
         </button>
         <button
           type="button"
-          className="destructiveButton"
+          className={destructiveButtonClass}
           onClick={() => {
             acceptedSettingsRef.current = settings;
             setIsDraftDirty(false);

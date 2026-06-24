@@ -8,15 +8,13 @@ interface Props {
 export default function ErrorBanner({ title, detail }: Props) {
   return (
     <div
-      className="mx-auto mb-4 flex w-full max-w-4xl items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive animate-in fade-in slide-in-from-top-2 duration-300"
+      className="mx-3 mt-3 flex items-start gap-3 rounded-lg border border-destructive/35 bg-destructive/10 px-4 py-3 text-destructive shadow-sm sm:mx-5 lg:mx-8"
       role="alert"
     >
-      <div className="flex-shrink-0">
-        <AlertCircle aria-hidden="true" size={20} strokeWidth={2.25} />
-      </div>
-      <div className="flex-1 space-y-1">
+      <AlertCircle aria-hidden="true" size={20} strokeWidth={2.25} className="mt-0.5 shrink-0" />
+      <div className="min-w-0">
         <strong className="block text-sm font-semibold">{title}</strong>
-        <p className="text-sm opacity-90">{detail}</p>
+        <p className="mt-1 break-words text-sm leading-6 opacity-90">{detail}</p>
       </div>
     </div>
   );
