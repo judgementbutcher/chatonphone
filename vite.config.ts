@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import type { ManifestOptions } from 'vite-plugin-pwa';
 import { VitePWA } from 'vite-plugin-pwa';
+import path from 'path';
 
 export const pwaManifest = {
   name: 'ChatOnPhone',
@@ -29,6 +30,11 @@ const pwaPluginManifest: Partial<ManifestOptions> = {
 };
 
 const config = {
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   plugins: [
     react(),
     VitePWA({

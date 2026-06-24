@@ -15,8 +15,13 @@
     "isolatedModules": true,
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
-    "types": ["vite/client"],
-    "jsx": "react-jsx"
+    "types": ["vite/client", "node"],
+    "jsx": "react-jsx",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src", "tests", "worker", "vitest.setup.ts", "playwright.config.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
