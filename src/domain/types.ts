@@ -24,6 +24,7 @@ export interface AppSettings {
   apiBaseUrl: string;
   apiKey: string;
   model: string;
+  chatModel?: string; // 对话界面选择的模型（独立于设置界面）
   temperature: number;
   maxTokens: number;
   stream: boolean;
@@ -32,7 +33,7 @@ export interface AppSettings {
   proxyAccessToken: string;
   providers?: ProviderSettings[];
   selectedProviderId?: string;
-  selectedModel?: string;
+  selectedModel?: string; // 设置界面选择的模型（仅用于测试）
   syncAccount?: SyncAccountSettings;
   darkMode?: boolean;
 }

@@ -386,6 +386,7 @@ export default function SettingsPanel({
                 value={draft.maxTokens}
                 type="number"
                 min="1"
+                max="1000000"
                 step="1"
                 onChange={(event) => updateDraft({ ...draft, maxTokens: event.target.valueAsNumber })}
               />

@@ -43,6 +43,9 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     [settings.providers, settings.selectedProviderId]
   );
 
+  // 对话界面使用 chatModel，如果没有则使用第一个可用模型
+  const activeChatModel = settings.chatModel || quickModelOptions[0] || '';
+
   useAutoSync(settings, sync.pullSyncedSettings, onSettingsChange);
 
   useEffect(() => {
@@ -170,12 +173,12 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       } : provider
     ));
 
+    // 只更新 chatModel，不影响 model 和 selectedModel
     onSettingsChange({
       ...settings,
       providers: nextProviders,
       selectedProviderId: activeProvider.id,
-      selectedModel: model,
-      model
+      chatModel: model
     });
   }
 
@@ -268,7 +271,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
               <select
                 id="quick-model-select"
                 aria-label="桌面模型选择"
-                value={settings.model}
+                value={activeChatModel}
                 onChange={(event) => handleQuickModelSelect(event.target.value)}
                 className="tech-control h-10 max-w-[260px] rounded-full px-3.5 text-sm outline-none"
               >
@@ -278,7 +281,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
               </select>
             ) : (
               <span className="chip max-w-[220px] truncate rounded-full px-3.5 py-2 text-sm text-muted-foreground">
-                {settings.model || '未设置模型'}
+                {activeChatModel || '未设置模型'}
               </span>
             )}
             <div className="chip inline-flex h-10 items-center gap-2 rounded-full px-3.5 text-sm">
@@ -305,7 +308,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
             <select
               id="quick-model-select-mobile"
               aria-label="快捷模型"
-              value={settings.model}
+              value={activeChatModel}
               onChange={(event) => handleQuickModelSelect(event.target.value)}
               className="tech-control h-10 min-w-0 flex-1 rounded-full px-3.5 text-sm outline-none"
             >
@@ -315,7 +318,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
             </select>
           ) : (
             <span className="chip min-w-0 flex-1 truncate rounded-full px-3.5 py-2 text-sm text-muted-foreground">
-              {settings.model || '未设置模型'}
+              {activeChatModel || '未设置模型'}
             </span>
           )}
           <div className="chip ml-2 inline-flex h-10 items-center gap-2 rounded-full px-3 text-sm">

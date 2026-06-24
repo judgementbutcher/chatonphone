@@ -208,7 +208,7 @@ function sanitizeSettings(value: unknown): AppSettings {
     apiKey: activeProvider.apiKey,
     model: selectedModel,
     temperature: numberSetting(value.temperature, defaultSettings.temperature, (temperature) => temperature >= 0 && temperature <= 2),
-    maxTokens: numberSetting(value.maxTokens, defaultSettings.maxTokens, (maxTokens) => maxTokens > 0),
+    maxTokens: numberSetting(value.maxTokens, defaultSettings.maxTokens, (maxTokens) => maxTokens > 0 && maxTokens <= 1000000),
     stream: booleanSetting(value.stream, defaultSettings.stream),
     requestMode: activeProvider.requestMode,
     proxyUrl: activeProvider.proxyUrl,

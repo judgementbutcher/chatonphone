@@ -65,6 +65,15 @@ export async function sendChatRequest(
   fetchImpl: FetchLike = fetch,
   signal?: AbortSignal
 ): Promise<Response> {
+  // 调试：打印请求信息
+  console.log('📤 发送请求到 API:', {
+    model: request.model,
+    messagesCount: request.messages.length,
+    maxTokens: request.max_tokens,
+    temperature: request.temperature,
+    stream: request.stream
+  });
+
   const response = await fetchImpl(buildUrl(settings), {
     method: 'POST',
     headers: buildHeaders(settings),
