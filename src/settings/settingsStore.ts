@@ -177,7 +177,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     ...settings,
     apiBaseUrl: activeProvider.apiBaseUrl,
     apiKey: activeProvider.apiKey,
-    model: selectedModel,
+    model: settings.model || selectedModel, // 保持对话界面选择的模型
     requestMode: activeProvider.requestMode,
     proxyUrl: activeProvider.proxyUrl,
     proxyAccessToken: activeProvider.proxyAccessToken,

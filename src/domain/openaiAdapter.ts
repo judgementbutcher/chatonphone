@@ -37,6 +37,18 @@ function toOpenAIMessage(message: ChatMessage): OpenAIMessage {
       continue;
     }
 
+    // 确保图片有 dataUrl
+    if (!attachment.dataUrl) {
+      console.warn('图片缺少 dataUrl:', attachment);
+      continue;
+    }
+
+    console.log('添加图片到请求:', {
+      name: attachment.name,
+      dataUrlLength: attachment.dataUrl.length,
+      dataUrlPrefix: attachment.dataUrl.substring(0, 50)
+    });
+
     content.push({
       type: 'image_url',
       image_url: {

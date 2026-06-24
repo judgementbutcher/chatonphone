@@ -115,8 +115,18 @@ export default function MessageList({ messages, onEditUserMessage, onRegenerate,
                       : 'message-bubble assistant-message-bubble'
                   }`}
                 >
-                  <div className={`markdownBody ${isUser ? '[&_code]:border-white/25 [&_code]:bg-white/[0.12] [&_a]:text-primary-foreground' : ''}`}>
-                    <ReactMarkdown
+                  {!isUser && message.text.trim() === '' && isGenerating && message.id === messages[messages.length - 1]?.id ? (
+                    <div className="flex items-center gap-3">
+                      <div className="loadingSpinner">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                      </div>
+                      <span className="text-sm text-muted-foreground">正在思考...</span>
+                    </div>
+                  ) : (
+                    <div className={`markdownBody ${isUser ? '[&_code]:border-primary/25 [&_code]:bg-primary/[0.12] [&_a]:text-primary' : ''}`}>
+                      <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeSanitize]}
                       components={{
@@ -156,6 +166,7 @@ export default function MessageList({ messages, onEditUserMessage, onRegenerate,
                       {message.text || ' '}
                     </ReactMarkdown>
                   </div>
+                  )}
 
                   {imageAttachments.length > 0 && (
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -233,28 +244,6 @@ export default function MessageList({ messages, onEditUserMessage, onRegenerate,
           );
         })}
 
-        {isGenerating && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.text.trim() === '' && (
-          <article className="flex animate-fade-up gap-3 justify-start">
-            <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.14),0_10px_24px_hsl(var(--primary)/0.11)]">
-              <Bot size={19} strokeWidth={2.2} className="text-primary" />
-            </div>
-            <div className="min-w-0 max-w-[88%] sm:max-w-[78%] items-start flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">助手</span>
-              </div>
-              <div className="w-full rounded-2xl px-4 py-3 message-bubble assistant-message-bubble">
-                <div className="flex items-center gap-3">
-                  <div className="loadingSpinner">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                  </div>
-                  <span className="text-sm text-muted-foreground">正在思考...</span>
-                </div>
-              </div>
-            </div>
-          </article>
-        )}
       </div>
       <div ref={messagesEndRef} />
     </section>
