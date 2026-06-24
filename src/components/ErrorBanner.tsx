@@ -1,3 +1,5 @@
+import { AlertCircle } from 'lucide-react';
+
 interface Props {
   title: string;
   detail: string;
@@ -6,8 +8,13 @@ interface Props {
 export default function ErrorBanner({ title, detail }: Props) {
   return (
     <div className="errorBanner" role="alert">
-      <strong>{title}</strong>
-      <p>{detail}</p>
+      <div className="errorIcon">
+        <AlertCircle aria-hidden="true" size={18} strokeWidth={2.25} />
+      </div>
+      <div className="errorContent">
+        <strong>{title}</strong>
+        <p>{detail}</p>
+      </div>
     </div>
   );
 }
