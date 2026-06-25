@@ -35,11 +35,17 @@ function revokePreviewUrl(previewUrl: string) {
   }
 }
 
+function pendingFileKey(file: File) {
+  return `${file.name}-${file.size}`;
+}
+
 export default function Composer({ isGenerating, disabled = false, draftText, onDraftTextChange, onSend, onStop }: Props) {
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const pendingFilesRef = useRef<PendingFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const dragCounterRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -63,6 +69,38 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  }
+
+  // Append new files to the pending list, deduping by name+size so re-picking
+  // the same file is a no-op and only freshly added files get a new Object URL.
+  function appendPendingFiles(incomingFiles: File[]) {
+    if (incomingFiles.length === 0) {
+      return;
+    }
+
+    const existingKeys = new Set(pendingFilesRef.current.map((pendingFile) => pendingFileKey(pendingFile.file)));
+    const additions: PendingFile[] = [];
+
+    for (const file of incomingFiles) {
+      const key = pendingFileKey(file);
+
+      if (existingKeys.has(key)) {
+        continue;
+      }
+
+      existingKeys.add(key);
+      additions.push({
+        id: `${file.name}-${file.size}-${file.lastModified}`,
+        file,
+        previewUrl: createPreviewUrl(file)
+      });
+    }
+
+    if (additions.length === 0) {
+      return;
+    }
+
+    setTrackedPendingFiles([...pendingFilesRef.current, ...additions]);
   }
 
   useEffect(() => {
@@ -89,31 +127,47 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
     });
   }
 
-  if (isGenerating) {
-    return (
-      <div className="soft-divider-top bg-background/86 px-3 py-3 backdrop-blur-xl sm:px-5">
-        <div className="mx-auto flex max-w-4xl justify-center">
-          <button
-            type="button"
-            className="danger-action inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold"
-            aria-label="停止"
-            onClick={onStop}
-          >
-            <Square aria-hidden="true" size={15} fill="currentColor" strokeWidth={0} />
-            停止
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const canSubmit = !disabled && !isGenerating && (draftText.trim().length > 0 || pendingFiles.length > 0);
 
   return (
     <form
-      className="soft-divider-top bg-background/86 px-3 py-3 backdrop-blur-xl sm:px-5"
+      className="soft-divider-top relative bg-background/86 px-3 py-3 backdrop-blur-xl sm:px-5"
+      data-dragover={isDragOver ? 'true' : undefined}
+      onDragEnter={(event) => {
+        if (event.dataTransfer?.types?.includes('Files')) {
+          event.preventDefault();
+          dragCounterRef.current += 1;
+          setIsDragOver(true);
+        }
+      }}
+      onDragOver={(event) => {
+        if (event.dataTransfer?.types?.includes('Files')) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+        }
+      }}
+      onDragLeave={(event) => {
+        if (event.dataTransfer?.types?.includes('Files')) {
+          dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+          if (dragCounterRef.current === 0) {
+            setIsDragOver(false);
+          }
+        }
+      }}
+      onDrop={(event) => {
+        if (!event.dataTransfer?.files?.length) {
+          return;
+        }
+
+        event.preventDefault();
+        dragCounterRef.current = 0;
+        setIsDragOver(false);
+        appendPendingFiles(Array.from(event.dataTransfer.files));
+      }}
       onSubmit={async (event) => {
         event.preventDefault();
         try {
-          if (disabled) {
+          if (disabled || isGenerating) {
             return;
           }
 
@@ -137,15 +191,12 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
           accept="image/*,.txt,.md,.markdown,.json,.csv,.html,.htm,.css,.js,.jsx,.ts,.tsx,.xml,.yaml,.yml,.log,text/*,application/json"
           multiple
           onChange={(event) => {
+            // Append rather than replace so multiple picks accumulate.
+            // Dedupe by name+size to prevent duplicate previews.
             const selectedFiles = Array.from(event.target.files ?? []);
-            for (const pendingFile of pendingFilesRef.current) {
-              revokePreviewUrl(pendingFile.previewUrl);
-            }
-            setTrackedPendingFiles(selectedFiles.map((file) => ({
-              id: `${file.name}-${file.size}-${file.lastModified}`,
-              file,
-              previewUrl: createPreviewUrl(file)
-            })));
+            appendPendingFiles(selectedFiles);
+            // Reset the input so the same file can be reselected if removed.
+            event.target.value = '';
           }}
         />
 
@@ -196,27 +247,60 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
             value={draftText}
             onChange={(event) => onDraftTextChange(event.target.value)}
             onKeyDown={(event) => {
+              // Ctrl/Cmd + Enter always submits.
               if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                 event.preventDefault();
                 const form = event.currentTarget.form;
-                if (form && (draftText.trim().length > 0 || pendingFiles.length > 0)) {
+                if (form && canSubmit) {
+                  form.requestSubmit();
+                }
+                return;
+              }
+
+              // Plain Enter submits, unless inside an IME composition or with Shift held.
+              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                const form = event.currentTarget.form;
+                if (form && canSubmit) {
                   form.requestSubmit();
                 }
               }
             }}
+            onPaste={(event) => {
+              const pastedFiles = Array.from(event.clipboardData?.files ?? []);
+              if (pastedFiles.length === 0) {
+                return;
+              }
+
+              // Prevent the browser from also inserting the file's filename as text.
+              event.preventDefault();
+              appendPendingFiles(pastedFiles);
+            }}
             rows={1}
-            placeholder="输入消息，Ctrl + Enter 发送"
+            placeholder="输入消息，Enter 发送，Shift + Enter 换行"
             className="max-h-36 min-h-10 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-6 outline-none placeholder:text-muted-foreground"
           />
 
-          <button
-            type="submit"
-            disabled={disabled || (draftText.trim().length === 0 && pendingFiles.length === 0)}
-            className="primary-action inline-flex h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold disabled:opacity-45 sm:px-4"
-          >
-            <Send aria-hidden="true" size={17} strokeWidth={2.35} />
-            发送
-          </button>
+          {isGenerating ? (
+            <button
+              type="button"
+              className="danger-action inline-flex h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold sm:px-4"
+              aria-label="停止"
+              onClick={onStop}
+            >
+              <Square aria-hidden="true" size={15} fill="currentColor" strokeWidth={0} />
+              停止
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={disabled || (draftText.trim().length === 0 && pendingFiles.length === 0)}
+              className="primary-action inline-flex h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold disabled:opacity-45 sm:px-4"
+            >
+              <Send aria-hidden="true" size={17} strokeWidth={2.35} />
+              发送
+            </button>
+          )}
         </div>
       </div>
     </form>

@@ -414,7 +414,9 @@ describe('App persistence', () => {
 
     render(<App />);
 
-    fireEvent.change(await screen.findByLabelText('重命名 旧会话'), { target: { value: '新标题' } });
+    const renameInput = await screen.findByLabelText('重命名 旧会话');
+    fireEvent.change(renameInput, { target: { value: '新标题' } });
+    fireEvent.blur(renameInput);
 
     await waitFor(() => {
       expect(storageMock.saveConversation).toHaveBeenCalled();
@@ -1023,7 +1025,9 @@ describe('App persistence', () => {
 
     render(<App />);
 
-    fireEvent.change(await screen.findByLabelText('重命名 第一会话'), { target: { value: '第一新标题' } });
+    const firstRenameInput = await screen.findByLabelText('重命名 第一会话');
+    fireEvent.change(firstRenameInput, { target: { value: '第一新标题' } });
+    fireEvent.blur(firstRenameInput);
 
     await waitFor(() => {
       expect(storageMock.saveConversation).toHaveBeenCalledTimes(1);
@@ -1080,6 +1084,7 @@ describe('App persistence', () => {
 
     const renameInput = await screen.findByLabelText('重命名 旧会话');
     fireEvent.change(renameInput, { target: { value: '新标题' } });
+    fireEvent.blur(renameInput);
 
     await waitFor(() => {
       expect(storageMock.saveConversation).toHaveBeenCalled();
@@ -1131,7 +1136,9 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.change(screen.getByLabelText('重命名 旧会话'), { target: { value: '新标题' } });
+    const renameInputForSerialize = screen.getByLabelText('重命名 旧会话');
+    fireEvent.change(renameInputForSerialize, { target: { value: '新标题' } });
+    fireEvent.blur(renameInputForSerialize);
 
     expect(storageMock.saveConversation).toHaveBeenCalledTimes(1);
 
@@ -1195,7 +1202,9 @@ describe('App persistence', () => {
     });
     expect(pendingSaves[0].conversation.title).toBe('旧会话');
 
-    fireEvent.change(screen.getByLabelText('重命名 旧会话'), { target: { value: '新标题' } });
+    const renameInputForActiveMessages = screen.getByLabelText('重命名 旧会话');
+    fireEvent.change(renameInputForActiveMessages, { target: { value: '新标题' } });
+    fireEvent.blur(renameInputForActiveMessages);
 
     expect(storageMock.saveConversation).toHaveBeenCalledTimes(1);
 
@@ -1263,7 +1272,9 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.change(screen.getByLabelText('重命名 旧会话'), { target: { value: '新标题' } });
+    const renameInputForAuthoritative = screen.getByLabelText('重命名 旧会话');
+    fireEvent.change(renameInputForAuthoritative, { target: { value: '新标题' } });
+    fireEvent.blur(renameInputForAuthoritative);
 
     expect(storageMock.saveConversation).toHaveBeenCalledTimes(1);
 
@@ -1316,6 +1327,7 @@ describe('App persistence', () => {
 
     const renameInput = await screen.findByLabelText('重命名 旧会话');
     fireEvent.change(renameInput, { target: { value: '新标题' } });
+    fireEvent.blur(renameInput);
 
     await waitFor(() => {
       expect(storageMock.saveConversation).toHaveBeenCalled();

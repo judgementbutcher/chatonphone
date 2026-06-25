@@ -149,4 +149,51 @@ describe('chatReducer', () => {
       error: null
     });
   });
+
+  it('deletes a message by id', () => {
+    const state = {
+      ...initialChatState,
+      messages: [
+        { id: 'u1', role: 'user' as const, text: '问题1', attachments: [], createdAt: 1 },
+        { id: 'a1', role: 'assistant' as const, text: '回答1', attachments: [], createdAt: 2 },
+        { id: 'u2', role: 'user' as const, text: '问题2', attachments: [], createdAt: 3 }
+      ]
+    };
+
+    expect(chatReducer(state, { type: 'delete-message', messageId: 'a1' }).messages).toEqual([
+      { id: 'u1', role: 'user', text: '问题1', attachments: [], createdAt: 1 },
+      { id: 'u2', role: 'user', text: '问题2', attachments: [], createdAt: 3 }
+    ]);
+  });
+
+  it('updates message content and clears attachments', () => {
+    const state = {
+      ...initialChatState,
+      messages: [
+        {
+          id: 'u1',
+          role: 'user' as const,
+          text: '旧内容',
+          attachments: [
+            {
+              id: 'img1',
+              name: 'test.jpg',
+              mimeType: 'image/jpeg',
+              dataUrl: 'data:image/jpeg;base64,abc',
+              previewUrl: 'blob:xyz',
+              width: 100,
+              height: 100,
+              sizeBytes: 1000
+            }
+          ],
+          createdAt: 1
+        }
+      ]
+    };
+
+    const updated = chatReducer(state, { type: 'update-message-content', messageId: 'u1', text: '新内容' });
+
+    expect(updated.messages[0].text).toBe('新内容');
+    expect(updated.messages[0].attachments).toEqual([]);
+  });
 });

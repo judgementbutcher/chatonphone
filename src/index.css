@@ -555,6 +555,12 @@ select option {
   background: hsl(var(--panel) / 0.86);
 }
 
+.composer-shell[data-dragover="true"] {
+  outline: 2px dashed hsl(var(--primary) / 0.55);
+  outline-offset: -4px;
+  background: hsl(var(--primary) / 0.04);
+}
+
 .drawer-slide-left {
   animation: drawer-left 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -647,6 +653,84 @@ select option {
     opacity: 0;
     transform: scale(1.55);
   }
+}
+
+/* Overlay/dialog entrance. Pairs a fading scrim with a panel that scales up
+   from slightly small + low, using the same easing as the rest of the app so
+   command palette and lightbox feel of a piece with the drawers. */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.animate-overlay-in {
+  animation: overlay-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* The palette is centered with -translate-x-1/2; bake that into the keyframe
+   so the scale origin reads as "growing in place" rather than drifting. */
+.animate-dialog-in {
+  animation: dialog-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Plain scale-up for content that isn't horizontally centered (e.g. the
+   lightbox stage, dropdown menus). */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Streaming caret: a soft blinking block appended to the assistant message
+   while tokens are still arriving, signalling "live" output. */
+@keyframes caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.typing-caret::after {
+  display: inline-block;
+  width: 0.5rem;
+  height: 1.05em;
+  margin-left: 0.15rem;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background: hsl(var(--primary) / 0.8);
+  animation: caret-blink 1s steps(2, start) infinite;
+  content: "";
 }
 
 @media (prefers-reduced-motion: reduce) {

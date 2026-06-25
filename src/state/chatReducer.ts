@@ -45,6 +45,15 @@ export type ChatAction =
       messageId: string;
     }
   | {
+      type: 'delete-message';
+      messageId: string;
+    }
+  | {
+      type: 'update-message-content';
+      messageId: string;
+      text: string;
+    }
+  | {
       type: 'finish-generation';
     }
   | {
@@ -128,6 +137,24 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         messages: state.messages.filter((message) => message.id !== action.messageId),
+        error: null
+      };
+
+    case 'delete-message':
+      return {
+        ...state,
+        messages: state.messages.filter((message) => message.id !== action.messageId),
+        error: null
+      };
+
+    case 'update-message-content':
+      return {
+        ...state,
+        messages: state.messages.map((message) =>
+          message.id === action.messageId
+            ? { ...message, text: action.text, attachments: [] }
+            : message
+        ),
         error: null
       };
 
