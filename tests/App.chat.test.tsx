@@ -18,7 +18,10 @@ function streamingTextResponse(chunks: string[]): Response {
       controller.enqueue(encoder.encode('data: [DONE]\n\n'));
       controller.close();
     }
-  }), { status: 200 });
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' }
+  });
 }
 
 function deferredResponse() {

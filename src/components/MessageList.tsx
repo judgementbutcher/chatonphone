@@ -379,7 +379,9 @@ export default function MessageList({
 
                         {!isEditing && (
                           <div
-                            className={`absolute right-2 top-2 flex gap-1 rounded-full bg-background/95 p-1 shadow-lg backdrop-blur-sm transition-opacity duration-200 focus-within:opacity-100 focus-within:pointer-events-auto group-hover:opacity-100 group-hover:pointer-events-auto ${
+                            className={`absolute bottom-full z-10 mb-1 flex gap-1 rounded-full border border-hairline/40 bg-background/95 p-1 shadow-lg backdrop-blur-sm transition-opacity duration-200 focus-within:opacity-100 focus-within:pointer-events-auto group-hover:opacity-100 group-hover:pointer-events-auto ${
+                              isUser ? 'left-1' : 'right-1'
+                            } ${
                               longPressMessageId === message.id ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                             }`}
                           >

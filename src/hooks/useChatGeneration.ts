@@ -82,10 +82,22 @@ export function useChatGeneration(
         return false;
       }
 
-      if (settings.stream) {
+      // 关键：以服务器实际返回的 Content-Type 为准，而不是请求时的 stream 标志。
+      // 许多第三方中转站会忽略 stream:true，直接返回普通 JSON completion，
+      // 此时若仍按流式解析会读不到任何 data: 行，导致回复永远为空。
+      const contentType = response.headers.get('content-type') ?? '';
+      const isEventStream = contentType.toLowerCase().includes('text/event-stream');
+
+      let receivedContent = false;
+
+      if (isEventStream) {
         for await (const delta of readStreamingText(response)) {
           if (!isActiveGeneration(generation)) {
             return false;
+          }
+
+          if (delta.length > 0) {
+            receivedContent = true;
           }
 
           dispatch({ type: 'append-assistant-delta', messageId: assistantMessageId, delta });
@@ -97,12 +109,25 @@ export function useChatGeneration(
           return false;
         }
 
+        receivedContent = text.trim().length > 0;
         dispatch({ type: 'replace-assistant-text', messageId: assistantMessageId, text });
       }
 
-      if (isActiveGeneration(generation)) {
-        dispatch({ type: 'finish-generation' });
+      if (!isActiveGeneration(generation)) {
+        return false;
       }
+
+      // 服务器返回 200 但内容为空：移除空气泡并明确报错，避免永远停在「正在思考…」。
+      if (!receivedContent) {
+        dispatch({ type: 'remove-message', messageId: assistantMessageId });
+        dispatch({
+          type: 'set-error',
+          message: '请求失败：接口返回了空回复，请检查模型名是否正确，或稍后重试。'
+        });
+        return false;
+      }
+
+      dispatch({ type: 'finish-generation' });
     } catch (error) {
       if (controller.signal.aborted) {
         if (isActiveGeneration(generation)) {
