@@ -14,6 +14,7 @@ import ConversationList from '../components/ConversationList';
 import ErrorBanner from '../components/ErrorBanner';
 import MessageList from '../components/MessageList';
 import ModelSelector from '../components/ModelSelector';
+import PersonaSelector from '../components/PersonaSelector';
 import SettingsPanel from '../components/SettingsPanel';
 import { useGlobalHotkeys } from '../hooks/useGlobalHotkeys';
 
@@ -280,6 +281,15 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     });
   }
 
+  function handlePersonaChange(personaId: string | undefined, prompt: string | undefined) {
+    // Snapshot the prompt onto the conversation and persist immediately so the
+    // binding survives reloads even before the next message is sent.
+    conversations.setActiveConversationPersona(personaId, prompt);
+    if (chatGeneration.state.messages.length > 0) {
+      conversations.saveConversationWithMessages(chatGeneration.state.messages);
+    }
+  }
+
   function handleDismissError() {
     chatGeneration.dispatch({ type: 'set-error', message: '' });
   }
@@ -522,6 +532,12 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
                 {activeChatModel || '未设置模型'}
               </span>
             )}
+            <PersonaSelector
+              personas={settings.personas ?? []}
+              selectedPersonaId={conversations.activeConversation.personaId}
+              onChange={handlePersonaChange}
+              disabled={chatGeneration.state.isGenerating}
+            />
             <div className="chip inline-flex h-10 items-center gap-2 rounded-full px-3.5 text-sm">
               <span className={`status-dot h-2 w-2 rounded-full ${chatGeneration.state.isGenerating ? 'bg-accent' : 'bg-primary'}`} />
               {generationStateLabel}
@@ -540,7 +556,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
           </button>
         </header>
 
-        <div className="soft-divider-bottom flex bg-background/80 px-3 py-2 backdrop-blur-xl md:hidden">
+        <div className="soft-divider-bottom flex items-center gap-2 bg-background/80 px-3 py-2 backdrop-blur-xl md:hidden">
           <label className="sr-only" htmlFor="quick-model-select-mobile">快捷模型</label>
           {visibleQuickModelOptions.length > 0 ? (
             <ModelSelector
@@ -556,7 +572,13 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
               {activeChatModel || '未设置模型'}
             </span>
           )}
-          <div className="chip ml-2 inline-flex h-10 items-center gap-2 rounded-full px-3 text-sm">
+          <PersonaSelector
+            personas={settings.personas ?? []}
+            selectedPersonaId={conversations.activeConversation.personaId}
+            onChange={handlePersonaChange}
+            disabled={chatGeneration.state.isGenerating}
+          />
+          <div className="chip inline-flex h-10 items-center gap-2 rounded-full px-3 text-sm">
             <span className={`status-dot h-2 w-2 rounded-full ${chatGeneration.state.isGenerating ? 'bg-accent' : 'bg-primary'}`} />
             {generationStateLabel}
           </div>
@@ -578,6 +600,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
           onDeleteMessage={handleDeleteMessage}
           onUpdateMessageContent={handleUpdateMessageContent}
           onQuoteMessage={handleQuoteMessage}
+          onSwitchVersion={chatGeneration.switchVersion}
           onOpenSettings={drawers.openSettingsDrawer}
           onUsePrompt={handleUsePrompt}
           hasProviders={(settings.providers?.length ?? 0) > 0}

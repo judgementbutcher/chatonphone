@@ -66,6 +66,7 @@ export interface UseConversationsReturn {
   deleteConversationById: (id: string) => boolean;
   renameConversation: (id: string, title: string) => Promise<void>;
   updateActiveConversation: (conversation: Conversation) => void;
+  setActiveConversationPersona: (personaId: string | undefined, systemPrompt: string | undefined) => void;
   saveConversationWithMessages: (messages: ChatMessage[]) => void;
   refreshConversations: (expectedPersistenceVersion?: number, preferStoredValues?: boolean) => Promise<void>;
   clearConversationList: () => void;
@@ -91,6 +92,19 @@ export function useConversations(settings: AppSettings, onError: (message: strin
   function updateActiveConversation(conversation: Conversation) {
     activeConversationIdRef.current = conversation.id;
     setActiveConversation(conversation);
+  }
+
+  function setActiveConversationPersona(personaId: string | undefined, systemPrompt: string | undefined) {
+    const updated: Conversation = {
+      ...activeConversation,
+      personaId,
+      systemPrompt,
+      updatedAt: Date.now()
+    };
+
+    activeConversationIdRef.current = updated.id;
+    setActiveConversation(updated);
+    latestConversationSnapshotsRef.current.set(updated.id, updated);
   }
 
   function startResetAttempt() {
@@ -354,6 +368,7 @@ export function useConversations(settings: AppSettings, onError: (message: strin
     startLocalReset,
     completeLocalReset,
     cancelLocalReset,
-    setActiveConversation
+    setActiveConversation,
+    setActiveConversationPersona
   };
 }

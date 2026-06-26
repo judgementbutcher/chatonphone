@@ -1,4 +1,4 @@
-import type { AppSettings, ProviderSettings, RequestMode, SyncAccountSettings } from '../domain/types';
+import type { AppSettings, Persona, ProviderSettings, RequestMode, SyncAccountSettings } from '../domain/types';
 
 const SETTINGS_KEY = 'chatonphone.settings.v1';
 const DEFAULT_PROVIDER_ID = 'default';
@@ -35,7 +35,8 @@ export const defaultSettings: AppSettings = {
     accountId: '',
     accessToken: '',
     autoSync: false
-  }
+  },
+  personas: []
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -80,6 +81,34 @@ function syncAccountSetting(value: unknown): SyncAccountSettings {
 
 function nonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function personasSetting(value: unknown): Persona[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seenIds = new Set<string>();
+  const personas: Persona[] = [];
+
+  for (const [index, personaValue] of value.entries()) {
+    if (!isRecord(personaValue)) {
+      continue;
+    }
+
+    const prompt = typeof personaValue.prompt === 'string' ? personaValue.prompt : '';
+    const id = nonEmptyString(personaValue.id) ?? `persona-${index + 1}`;
+    const name = nonEmptyString(personaValue.name) ?? `角色 ${index + 1}`;
+
+    if (seenIds.has(id)) {
+      continue;
+    }
+
+    seenIds.add(id);
+    personas.push({ id, name, prompt });
+  }
+
+  return personas;
 }
 
 function modelListSetting(value: unknown, selectedModel: string): string[] {
@@ -252,7 +281,8 @@ function sanitizeSettings(value: unknown): AppSettings {
     selectedProviderId: activeProvider.id,
     selectedModel,
     darkMode: booleanSetting(value.darkMode, defaultSettings.darkMode ?? false),
-    syncAccount: syncAccountSetting(value.syncAccount)
+    syncAccount: syncAccountSetting(value.syncAccount),
+    personas: personasSetting(value.personas)
   });
 }
 

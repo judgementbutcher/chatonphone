@@ -178,4 +178,40 @@ describe('toOpenAIChatRequest', () => {
       content: '图片说明'
     });
   });
+
+  it('prepends a bound persona as a system message', () => {
+    const messages: ChatMessage[] = [
+      {
+        id: 'm1',
+        role: 'user',
+        text: '你好',
+        attachments: [],
+        createdAt: 1
+      }
+    ];
+
+    expect(toOpenAIChatRequest(messages, settings, '你是一位资深翻译').messages).toEqual([
+      { role: 'system', content: '你是一位资深翻译' },
+      { role: 'user', content: '你好' }
+    ]);
+  });
+
+  it('does not inject a system message for an empty or whitespace persona', () => {
+    const messages: ChatMessage[] = [
+      {
+        id: 'm1',
+        role: 'user',
+        text: '你好',
+        attachments: [],
+        createdAt: 1
+      }
+    ];
+
+    expect(toOpenAIChatRequest(messages, settings, '   ').messages).toEqual([
+      { role: 'user', content: '你好' }
+    ]);
+    expect(toOpenAIChatRequest(messages, settings, undefined).messages).toEqual([
+      { role: 'user', content: '你好' }
+    ]);
+  });
 });

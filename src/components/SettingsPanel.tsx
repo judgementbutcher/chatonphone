@@ -1,7 +1,8 @@
 import { Activity, DatabaseZap, Moon, Plus, RefreshCw, Save, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { AppSettings, ProviderSettings } from '../domain/types';
+import type { AppSettings, Persona, ProviderSettings } from '../domain/types';
 import { defaultProvider, defaultSettings, getActiveProviderSettings } from '../settings/settingsStore';
+import PersonaManager from './PersonaManager';
 
 interface Props {
   settings: AppSettings;
@@ -98,6 +99,10 @@ export default function SettingsPanel({
   function updateDraft(nextDraft: AppSettings) {
     setIsDraftDirty(true);
     setDraft(nextDraft);
+  }
+
+  function handlePersonasChange(personas: Persona[]) {
+    updateDraft({ ...draft, personas });
   }
 
   function setNormalizedDraft(nextDraft: AppSettings) {
@@ -370,6 +375,11 @@ export default function SettingsPanel({
               onChange={(event) => updateDraft({ ...draft, darkMode: event.target.checked })}
             />
           </label>
+        </fieldset>
+
+        <fieldset className="soft-divider-top mt-7 space-y-4 pt-5">
+          <legend className="mb-3 text-sm font-semibold">角色预设</legend>
+          <PersonaManager personas={draft.personas ?? []} onChange={handlePersonasChange} />
         </fieldset>
 
         <fieldset className="soft-divider-top mt-7 space-y-4 pt-5">

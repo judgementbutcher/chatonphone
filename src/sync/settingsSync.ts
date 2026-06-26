@@ -31,6 +31,7 @@ function providerSettingsPayload(settings: AppSettings): Partial<AppSettings> {
     providers: normalized.providers,
     selectedProviderId: normalized.selectedProviderId,
     selectedModel: normalized.selectedModel,
+    personas: normalized.personas,
     syncAccount: {
       endpoint: normalized.syncAccount?.endpoint ?? '',
       accountId: normalized.syncAccount?.accountId ?? '',

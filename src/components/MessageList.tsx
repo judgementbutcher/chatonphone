@@ -1,4 +1,4 @@
-import { ArrowDown, Bot, Copy, FileText, Pencil, RefreshCw, User, Quote, Trash2, Save, X as XIcon } from 'lucide-react';
+import { ArrowDown, Bot, ChevronLeft, ChevronRight, Copy, FileText, Pencil, RefreshCw, User, Quote, Trash2, Save, Volume2, VolumeX, X as XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
@@ -18,6 +18,7 @@ interface Props {
   onUpdateMessageContent?: (id: string, text: string) => void;
   onQuoteMessage?: (text: string) => void;
   onRegenerateFromMessage?: (message: ChatMessage) => void;
+  onSwitchVersion?: (messageId: string, versionIndex: number) => void;
   onOpenSettings?: () => void;
   onUsePrompt?: (text: string) => void;
   hasProviders?: boolean;
@@ -78,6 +79,7 @@ export default function MessageList({
   onUpdateMessageContent,
   onQuoteMessage,
   onRegenerateFromMessage,
+  onSwitchVersion,
   onOpenSettings,
   onUsePrompt,
   hasProviders = true
@@ -95,8 +97,44 @@ export default function MessageList({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<Array<{ src: string; alt: string }>>([]);
   const [lightboxInitialIndex, setLightboxInitialIndex] = useState(0);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const lastMessageTextLength = terminalMessage?.text.length ?? 0;
   let codeBlockNumber = 0;
+
+  // Text-to-speech via the Web Speech API. Feature-detected so the control
+  // only appears where the browser supports it (and never in jsdom tests).
+  const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+  function handleToggleSpeak(message: ChatMessage) {
+    if (!speechSupported) {
+      return;
+    }
+
+    // Speaking the same message again stops it (toggle); speaking a different
+    // one cancels the in-flight utterance first so they never overlap.
+    window.speechSynthesis.cancel();
+
+    if (speakingMessageId === message.id) {
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(message.text);
+    utterance.onend = () => setSpeakingMessageId((current) => (current === message.id ? null : current));
+    utterance.onerror = () => setSpeakingMessageId((current) => (current === message.id ? null : current));
+    setSpeakingMessageId(message.id);
+    window.speechSynthesis.speak(utterance);
+  }
+
+  // Stop any in-flight speech when the list unmounts so it doesn't keep
+  // reading after the user navigates away.
+  useEffect(() => {
+    return () => {
+      if (speechSupported) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [speechSupported]);
 
   function scrollToBottom(behavior: ScrollBehavior = 'smooth') {
     const container = scrollContainerRef.current;
@@ -439,11 +477,55 @@ export default function MessageList({
                                 <RefreshCw aria-hidden="true" size={14} strokeWidth={2.25} />
                               </button>
                             )}
+                            {!isUser && speechSupported && message.text.trim() && (
+                              <button
+                                type="button"
+                                className="soft-action inline-flex h-7 w-7 items-center justify-center rounded-full text-xs"
+                                aria-label={speakingMessageId === message.id ? '停止朗读' : '朗读消息'}
+                                onClick={() => handleToggleSpeak(message)}
+                              >
+                                {speakingMessageId === message.id ? (
+                                  <VolumeX aria-hidden="true" size={14} strokeWidth={2.25} />
+                                ) : (
+                                  <Volume2 aria-hidden="true" size={14} strokeWidth={2.25} />
+                                )}
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
 
-                      <div className={`flex flex-wrap gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`flex flex-wrap items-center gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                        {!isUser && onSwitchVersion && message.versions && message.versions.length > 1 && (() => {
+                          const versionCount = message.versions.length;
+                          const activeIndex = message.activeVersionIndex ?? versionCount - 1;
+
+                          return (
+                            <div className="chip inline-flex h-8 items-center gap-1 rounded-full px-1.5 text-xs font-medium" aria-label="回答版本切换">
+                              <button
+                                type="button"
+                                className="soft-action inline-flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-40"
+                                aria-label="上一个版本"
+                                disabled={activeIndex <= 0 || isGenerating}
+                                onClick={() => onSwitchVersion(message.id, activeIndex - 1)}
+                              >
+                                <ChevronLeft aria-hidden="true" size={13} strokeWidth={2.4} />
+                              </button>
+                              <span className="min-w-[2.5rem] text-center tabular-nums text-muted-foreground" aria-live="polite">
+                                {activeIndex + 1} / {versionCount}
+                              </span>
+                              <button
+                                type="button"
+                                className="soft-action inline-flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-40"
+                                aria-label="下一个版本"
+                                disabled={activeIndex >= versionCount - 1 || isGenerating}
+                                onClick={() => onSwitchVersion(message.id, activeIndex + 1)}
+                              >
+                                <ChevronRight aria-hidden="true" size={13} strokeWidth={2.4} />
+                              </button>
+                            </div>
+                          );
+                        })()}
                         {isUser && onEditUserMessage && (
                           <button
                             type="button"

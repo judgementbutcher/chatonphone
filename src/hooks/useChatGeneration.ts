@@ -20,6 +20,7 @@ export interface UseChatGenerationReturn {
   stopGeneration: () => void;
   editUserMessage: (message: ChatMessage) => void;
   regenerateMessage: (message: ChatMessage) => Promise<void>;
+  switchVersion: (messageId: string, versionIndex: number) => void;
   loadMessages: (messages: ChatMessage[]) => void;
 }
 
@@ -32,9 +33,11 @@ export function useChatGeneration(
   const [state, dispatch] = useReducer(chatReducer, initialChatState);
   const activeGenerationRef = useRef<ActiveGeneration | null>(null);
   const activeConversationIdRef = useRef(activeConversation.id);
+  const systemPromptRef = useRef(activeConversation.systemPrompt);
 
-  // Update ref when conversation changes
+  // Update refs when conversation changes
   activeConversationIdRef.current = activeConversation.id;
+  systemPromptRef.current = activeConversation.systemPrompt;
 
   function isActiveGeneration(generation: ActiveGeneration) {
     const activeGeneration = activeGenerationRef.current;
@@ -75,7 +78,7 @@ export function useChatGeneration(
     const controller = generation.controller;
 
     try {
-      const request = toOpenAIChatRequest(messagesForRequest, settings);
+      const request = toOpenAIChatRequest(messagesForRequest, settings, systemPromptRef.current);
       const response = await sendChatRequest(request, settings, fetch, controller.signal);
 
       if (!isActiveGeneration(generation)) {
@@ -215,14 +218,21 @@ export function useChatGeneration(
       return;
     }
 
-    const messagesForRequest = state.messages.filter((currentMessage) => currentMessage.id !== message.id);
+    const messageIndex = state.messages.findIndex((currentMessage) => currentMessage.id === message.id);
+
+    if (messageIndex === -1) {
+      return;
+    }
+
+    // Context is everything preceding this assistant message; the message being
+    // regenerated (and anything after it) is excluded so the model re-answers
+    // the same prior turn. For the common terminal case this is [.. , lastUser].
+    const messagesForRequest = state.messages.slice(0, messageIndex);
 
     if (!messagesForRequest.some((currentMessage) => currentMessage.role === 'user')) {
       return;
     }
 
-    const now = Date.now();
-    const assistantMessageId = nanoid();
     const controller = new AbortController();
     const generation: ActiveGeneration = {
       generationId: nanoid(),
@@ -232,10 +242,15 @@ export function useChatGeneration(
 
     abortActiveGeneration();
     activeGenerationRef.current = generation;
-    dispatch({ type: 'remove-message', messageId: message.id });
-    dispatch({ type: 'begin-assistant-message', messageId: assistantMessageId, now });
+    // Branch in place: keep the same message id, snapshot the prior answer into
+    // its version list, and stream the fresh attempt into a new active slot.
+    dispatch({ type: 'begin-regeneration', messageId: message.id });
 
-    await generateAssistantResponse(generation, assistantMessageId, messagesForRequest);
+    await generateAssistantResponse(generation, message.id, messagesForRequest);
+  }
+
+  function switchVersion(messageId: string, versionIndex: number) {
+    dispatch({ type: 'switch-version', messageId, versionIndex });
   }
 
   function stopGeneration() {
@@ -255,6 +270,7 @@ export function useChatGeneration(
     stopGeneration,
     editUserMessage,
     regenerateMessage,
+    switchVersion,
     loadMessages
   };
 }

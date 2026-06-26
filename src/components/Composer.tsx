@@ -1,5 +1,43 @@
-import { FileText, ImagePlus, Send, Square, X } from 'lucide-react';
+import { FileText, ImagePlus, Mic, Send, Square, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+
+// Minimal structural types for the Web Speech API (not in the DOM lib). Only
+// the members we touch are declared; the runtime object is feature-detected.
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+}
+interface SpeechRecognitionResultLike {
+  0: SpeechRecognitionAlternativeLike;
+  isFinal: boolean;
+}
+interface SpeechRecognitionEventLike {
+  resultIndex: number;
+  results: { length: number; [index: number]: SpeechRecognitionResultLike };
+}
+interface SpeechRecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+}
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const candidate = (window as unknown as {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  });
+
+  return candidate.SpeechRecognition ?? candidate.webkitSpeechRecognition ?? null;
+}
 
 interface SendPayload {
   text: string;
@@ -46,6 +84,67 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const dragCounterRef = useRef(0);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  // The draft text as it stood when dictation started; recognized speech is
+  // appended onto this baseline so manual edits before dictation are preserved.
+  const dictationBaseRef = useRef('');
+  const draftTextRef = useRef(draftText);
+  draftTextRef.current = draftText;
+
+  const speechRecognitionSupported = getSpeechRecognitionConstructor() !== null;
+
+  function stopDictation() {
+    recognitionRef.current?.stop();
+  }
+
+  function startDictation() {
+    const SpeechRecognitionCtor = getSpeechRecognitionConstructor();
+    if (!SpeechRecognitionCtor) {
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = navigator.language || 'zh-CN';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    dictationBaseRef.current = draftTextRef.current.trim().length > 0 ? `${draftTextRef.current.trim()} ` : '';
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        transcript += event.results[index][0].transcript;
+      }
+      onDraftTextChange(`${dictationBaseRef.current}${transcript}`);
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+    recognition.onerror = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    setIsListening(true);
+    recognition.start();
+  }
+
+  function handleToggleDictation() {
+    if (isListening) {
+      stopDictation();
+    } else {
+      startDictation();
+    }
+  }
+
+  // Stop dictation on unmount so the mic doesn't stay live after navigation.
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -240,6 +339,20 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
           >
             <ImagePlus aria-hidden="true" size={21} strokeWidth={2.25} />
           </button>
+
+          {speechRecognitionSupported && (
+            <button
+              type="button"
+              className={`soft-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                isListening ? 'text-accent' : 'text-muted-foreground'
+              }`}
+              aria-label={isListening ? '停止语音输入' : '语音输入'}
+              aria-pressed={isListening}
+              onClick={handleToggleDictation}
+            >
+              <Mic aria-hidden="true" size={20} strokeWidth={2.25} className={isListening ? 'animate-pulse' : undefined} />
+            </button>
+          )}
 
           <textarea
             ref={textareaRef}

@@ -37,6 +37,18 @@ export type ChatAction =
       now: number;
     }
   | {
+      // Regenerate an existing assistant message in place: snapshot its current
+      // answer into `versions`, append a fresh empty slot, and stream into it so
+      // prior attempts remain switchable.
+      type: 'begin-regeneration';
+      messageId: string;
+    }
+  | {
+      type: 'switch-version';
+      messageId: string;
+      versionIndex: number;
+    }
+  | {
       type: 'truncate-after-message';
       messageId: string;
     }
@@ -66,6 +78,22 @@ export type ChatAction =
     };
 
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
+  // When an assistant message carries multiple answer versions, its live `text`
+  // is the active version. This mirrors an updated `text` back into that slot so
+  // streaming/replacement keeps the version array authoritative. It's a no-op
+  // for messages without versions, so single-answer behaviour is unchanged.
+  function withSyncedActiveVersion(message: ChatMessage, text: string): ChatMessage {
+    if (!message.versions || message.activeVersionIndex === undefined) {
+      return { ...message, text };
+    }
+
+    const versions = message.versions.map((version, index) =>
+      index === message.activeVersionIndex ? text : version
+    );
+
+    return { ...message, text, versions };
+  }
+
   switch (action.type) {
     case 'send-user-message': {
       const assistant: ChatMessage = {
@@ -89,7 +117,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         messages: state.messages.map((message) =>
-          message.id === action.messageId ? { ...message, text: message.text + action.delta } : message
+          message.id === action.messageId ? withSyncedActiveVersion(message, message.text + action.delta) : message
         )
       };
 
@@ -97,7 +125,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         messages: state.messages.map((message) =>
-          message.id === action.messageId ? { ...message, text: action.text } : message
+          message.id === action.messageId ? withSyncedActiveVersion(message, action.text) : message
         )
       };
 
@@ -117,6 +145,49 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         isGenerating: true,
         activeAssistantMessageId: action.messageId,
         error: null
+      };
+
+    case 'begin-regeneration':
+      return {
+        ...state,
+        messages: state.messages.map((message) => {
+          if (message.id !== action.messageId) {
+            return message;
+          }
+
+          // Seed the version array from the current single answer on first
+          // regeneration, then append a fresh empty slot and point at it.
+          const existingVersions = message.versions ?? [message.text];
+          const nextVersions = [...existingVersions, ''];
+
+          return {
+            ...message,
+            text: '',
+            versions: nextVersions,
+            activeVersionIndex: nextVersions.length - 1
+          };
+        }),
+        isGenerating: true,
+        activeAssistantMessageId: action.messageId,
+        error: null
+      };
+
+    case 'switch-version':
+      return {
+        ...state,
+        messages: state.messages.map((message) => {
+          if (message.id !== action.messageId || !message.versions) {
+            return message;
+          }
+
+          const versionIndex = Math.max(0, Math.min(action.versionIndex, message.versions.length - 1));
+
+          return {
+            ...message,
+            text: message.versions[versionIndex],
+            activeVersionIndex: versionIndex
+          };
+        })
       };
 
     case 'truncate-after-message': {

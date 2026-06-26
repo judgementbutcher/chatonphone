@@ -27,6 +27,27 @@ interface CommandItem {
   label: string;
   command: Command;
   keywords: string[];
+  // When present, a snippet of matched message text shown under the label.
+  // Set only for full-text message hits so title/model matches stay compact.
+  excerpt?: string;
+}
+
+// Build a one-line excerpt around the first occurrence of the query within a
+// message body, with ellipses so the matched term stays visible in context.
+function buildExcerpt(text: string, query: string): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  const matchIndex = flat.toLowerCase().indexOf(query.toLowerCase());
+
+  if (matchIndex === -1) {
+    return flat.slice(0, 80);
+  }
+
+  const start = Math.max(0, matchIndex - 24);
+  const end = Math.min(flat.length, matchIndex + query.length + 56);
+  const prefix = start > 0 ? '…' : '';
+  const suffix = end < flat.length ? '…' : '';
+
+  return `${prefix}${flat.slice(start, end)}${suffix}`;
 }
 
 function fuzzyMatch(query: string, target: string): { matches: boolean; score: number } {
@@ -178,8 +199,42 @@ export default function CommandPalette({
       .sort((a, b) => b.score - a.score)
       .map((item) => item.cmd);
 
-    return matched;
-  }, [commands, searchQuery]);
+    // Full-text search over message bodies. Skipped in command mode (which only
+    // surfaces actions) and for single-character queries to avoid noise. A
+    // conversation already matched by title is excluded so it shows only once.
+    if (mode === 'command' || searchQuery.length < 2) {
+      return matched;
+    }
+
+    const titleMatchedConversationIds = new Set(
+      matched
+        .filter((item) => item.command.type === 'jump-conversation')
+        .map((item) => (item.command as Extract<Command, { type: 'jump-conversation' }>).payload)
+    );
+
+    const needle = searchQuery.toLowerCase();
+    const messageHits: CommandItem[] = [];
+
+    for (const conv of conversations) {
+      if (titleMatchedConversationIds.has(conv.id)) {
+        continue;
+      }
+
+      const hit = conv.messages.find((message) => message.text.toLowerCase().includes(needle));
+
+      if (hit) {
+        messageHits.push({
+          id: `msg-${conv.id}`,
+          label: `${conv.title}`,
+          command: { type: 'jump-conversation', payload: conv.id },
+          keywords: [],
+          excerpt: buildExcerpt(hit.text, searchQuery)
+        });
+      }
+    }
+
+    return [...matched, ...messageHits];
+  }, [commands, searchQuery, mode, conversations]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -243,8 +298,13 @@ export default function CommandPalette({
                   }}
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
-                  <Icon aria-hidden="true" size={16} strokeWidth={2.15} className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">{cmd.label}</span>
+                  <Icon aria-hidden="true" size={16} strokeWidth={2.15} className="mt-0.5 shrink-0 self-start" />
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="min-w-0 truncate">{cmd.label}</span>
+                    {cmd.excerpt && (
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">{cmd.excerpt}</span>
+                    )}
+                  </span>
                 </button>
               );
             })}
