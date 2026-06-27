@@ -116,6 +116,11 @@ async function stopGenerationIfActive(user: ReturnType<typeof userEvent.setup>) 
 }
 
 async function openSettings(user: ReturnType<typeof userEvent.setup>) {
+  if (screen.queryByRole('dialog', { name: '设置中心' })) {
+    await screen.findByLabelText('API Base URL');
+    return;
+  }
+
   await user.click(screen.getAllByRole('button', { name: '打开设置' }).at(-1)!);
   await screen.findByLabelText('API Base URL');
 }
@@ -123,6 +128,8 @@ async function openSettings(user: ReturnType<typeof userEvent.setup>) {
 async function resetLocalDataFromSettings(user: ReturnType<typeof userEvent.setup>) {
   await openSettings(user);
   await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+  await user.click(screen.getAllByRole('button', { name: '清除本机数据' }).at(-1)!);
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: '设置中心' })).not.toBeInTheDocument());
 }
 
 async function resetLocalDataFromSettingsWithFireEvent() {
@@ -134,6 +141,7 @@ async function resetLocalDataFromSettingsWithFireEvent() {
 
   fireEvent.click(settingsButton);
   fireEvent.click(await screen.findByRole('button', { name: '清除本机数据' }));
+  fireEvent.click((await screen.findAllByRole('button', { name: '清除本机数据' })).at(-1)!);
 }
 
 describe('App persistence', () => {
@@ -365,7 +373,7 @@ describe('App persistence', () => {
     await openSettings(user);
     expect(screen.getByLabelText('API Base URL')).toHaveValue('https://gateway.example.com/v1');
     expect(screen.getByLabelText('API Key')).toHaveValue('secret');
-    expect(screen.getByLabelText('模型名')).toHaveValue('vision-model');
+    expect(screen.getByLabelText('默认聊天模型')).toHaveValue('vision-model');
     expect(screen.queryByLabelText('请求模式')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('代理地址')).not.toBeInTheDocument();
 
@@ -376,7 +384,7 @@ describe('App persistence', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('API Base URL')).toHaveValue('https://gateway.example.com/v1');
       expect(screen.getByLabelText('API Key')).toHaveValue('secret');
-      expect(screen.getByLabelText('模型名')).toHaveValue('vision-model');
+      expect(screen.getByLabelText('默认聊天模型')).toHaveValue('vision-model');
       expect(screen.queryByLabelText('请求模式')).not.toBeInTheDocument();
       expect(screen.queryByLabelText('代理地址')).not.toBeInTheDocument();
     });

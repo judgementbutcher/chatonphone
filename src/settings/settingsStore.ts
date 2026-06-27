@@ -12,7 +12,8 @@ export const defaultProvider: ProviderSettings = {
   requestMode: 'proxy',
   proxyUrl: '',
   proxyAccessToken: '',
-  models: []
+  models: [],
+  defaultModel: ''
 };
 
 export const defaultSettings: AppSettings = {
@@ -125,10 +126,12 @@ function modelListSetting(value: unknown, selectedModel: string): string[] {
 }
 
 function legacyProviderFrom(value: Record<string, unknown>): ProviderSettings {
-  const selectedModel =
-    nonEmptyString(value.selectedModel) ??
+  const defaultModel =
     nonEmptyString(value.chatModel) ??
-    stringSetting(value.model, defaultSettings.model);
+    nonEmptyString(value.model) ??
+    nonEmptyString(value.selectedModel) ??
+    nonEmptyString(Array.isArray(value.models) ? value.models[0] : undefined) ??
+    defaultSettings.model;
 
   return {
     id: DEFAULT_PROVIDER_ID,
@@ -138,8 +141,42 @@ function legacyProviderFrom(value: Record<string, unknown>): ProviderSettings {
     requestMode: requestModeSetting(value.requestMode),
     proxyUrl: stringSetting(value.proxyUrl, defaultSettings.proxyUrl),
     proxyAccessToken: stringSetting(value.proxyAccessToken, defaultSettings.proxyAccessToken),
-    models: modelListSetting(value.models, selectedModel)
+    models: modelListSetting(value.models, defaultModel),
+    defaultModel
   };
+}
+
+function providerWithDefaultModel(provider: ProviderSettings, fallbackModel = ''): ProviderSettings {
+  const defaultModel =
+    nonEmptyString(provider.defaultModel) ??
+    nonEmptyString(fallbackModel) ??
+    nonEmptyString(provider.models[0]) ??
+    '';
+
+  return {
+    ...provider,
+    models: modelListSetting(provider.models, defaultModel),
+    defaultModel
+  };
+}
+
+function providersWithDefaultModels(providers: ProviderSettings[], selectedProviderId: string | undefined, activeFallbackModel: string): ProviderSettings[] {
+  return providers.map((provider) => providerWithDefaultModel(
+    provider,
+    provider.id === selectedProviderId ? activeFallbackModel : ''
+  ));
+}
+
+function activeFallbackModel(value: { chatModel?: string; model?: string; selectedModel?: string }, activeProvider: ProviderSettings | undefined): string {
+  const candidates = [value.chatModel, value.model, value.selectedModel]
+    .map(nonEmptyString)
+    .filter((model): model is string => Boolean(model));
+
+  if (!activeProvider || activeProvider.models.length === 0) {
+    return candidates[0] ?? '';
+  }
+
+  return candidates.find((model) => activeProvider.models.includes(model)) ?? nonEmptyString(value.selectedModel) ?? candidates[0] ?? '';
 }
 
 function sanitizeProvider(value: unknown, index: number): ProviderSettings | null {
@@ -149,7 +186,11 @@ function sanitizeProvider(value: unknown, index: number): ProviderSettings | nul
 
   const id = nonEmptyString(value.id) ?? `provider-${index + 1}`;
   const name = nonEmptyString(value.name) ?? `供应商 ${index + 1}`;
-  const selectedModel = typeof value.selectedModel === 'string' ? value.selectedModel.trim() : '';
+  const defaultModel =
+    nonEmptyString(value.defaultModel) ??
+    nonEmptyString(value.selectedModel) ??
+    nonEmptyString(Array.isArray(value.models) ? value.models[0] : undefined) ??
+    '';
 
   return {
     id,
@@ -159,7 +200,8 @@ function sanitizeProvider(value: unknown, index: number): ProviderSettings | nul
     requestMode: requestModeSetting(value.requestMode),
     proxyUrl: stringSetting(value.proxyUrl, defaultSettings.proxyUrl),
     proxyAccessToken: stringSetting(value.proxyAccessToken, defaultSettings.proxyAccessToken),
-    models: modelListSetting(value.models, selectedModel)
+    models: modelListSetting(value.models, defaultModel),
+    defaultModel
   };
 }
 
@@ -204,22 +246,22 @@ function isBlankDefaultProvider(provider: ProviderSettings): boolean {
 
 function normalizeSettings(settings: AppSettings): AppSettings {
   const legacyProvider = legacyProviderFrom(settings as unknown as Record<string, unknown>);
-  const providers =
+  const rawProviders =
     !settings.providers ||
     settings.providers.length === 0 ||
     (settings.providers.length === 1 && isBlankDefaultProvider(settings.providers[0]) && hasLegacyConnectionValues(settings as unknown as Record<string, unknown>))
       ? [legacyProvider]
       : settings.providers;
-  const activeProvider = providers.find((provider) => provider.id === settings.selectedProviderId) ?? providers[0] ?? defaultProvider;
+  const selectedProviderId = settings.selectedProviderId ?? rawProviders[0]?.id ?? DEFAULT_PROVIDER_ID;
+  const rawActiveProvider = rawProviders.find((provider) => provider.id === selectedProviderId) ?? rawProviders[0];
+  const activeDefaultModelFallback = activeFallbackModel(settings, rawActiveProvider);
+  const providers = providersWithDefaultModels(rawProviders, selectedProviderId, activeDefaultModelFallback);
+  const activeProvider = providers.find((provider) => provider.id === selectedProviderId) ?? providers[0] ?? defaultProvider;
   const selectedModel =
-    nonEmptyString(settings.selectedModel) ??
+    nonEmptyString(activeProvider.defaultModel) ??
     nonEmptyString(activeProvider.models[0]) ??
     defaultSettings.selectedModel!;
-  const chatModel =
-    nonEmptyString(settings.chatModel) ??
-    selectedModel ??
-    nonEmptyString(settings.model) ??
-    '';
+  const chatModel = activeFallbackModel(settings, activeProvider) || selectedModel || '';
   const model = chatModel || selectedModel;
 
   return {
@@ -251,11 +293,14 @@ function sanitizeSettings(value: unknown): AppSettings {
   const shouldUseLegacyProvider =
     persistedProviders.length === 0 ||
     (persistedProviders.length === 1 && isBlankDefaultProvider(persistedProviders[0]) && hasLegacyConnectionValues(value));
-  const providers = shouldUseLegacyProvider ? [legacyProvider] : persistedProviders;
-  const selectedProviderId = stringSetting(value.selectedProviderId, providers[0]?.id ?? DEFAULT_PROVIDER_ID);
+  const rawProviders = shouldUseLegacyProvider ? [legacyProvider] : persistedProviders;
+  const selectedProviderId = stringSetting(value.selectedProviderId, rawProviders[0]?.id ?? DEFAULT_PROVIDER_ID);
+  const rawActiveProvider = rawProviders.find((provider) => provider.id === selectedProviderId) ?? rawProviders[0];
+  const activeDefaultModelFallback = activeFallbackModel(value, rawActiveProvider);
+  const providers = providersWithDefaultModels(rawProviders, selectedProviderId, activeDefaultModelFallback);
   const activeProvider = providers.find((provider) => provider.id === selectedProviderId) ?? providers[0] ?? defaultProvider;
   const selectedModel =
-    nonEmptyString(value.selectedModel) ??
+    nonEmptyString(activeProvider.defaultModel) ??
     nonEmptyString(activeProvider.models[0]) ??
     defaultSettings.model;
   const chatModel =

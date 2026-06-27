@@ -60,8 +60,11 @@ test('android-sized user can configure api and type a message', async ({ page })
   await page.getByRole('button', { name: '打开设置' }).click();
   await page.getByLabel('API Base URL').fill('https://gateway.example.com/v1');
   await page.getByLabel('API Key').fill('secret');
-  await page.getByRole('button', { name: '拉取模型列表' }).click();
-  await expect(page.getByLabel('模型名')).toHaveValue('vision-model');
+  await page.getByRole('button', { name: '拉取模型' }).click();
+  await expect(page.getByLabel('默认聊天模型')).toHaveValue('vision-model');
+  const settingsCenter = page.locator('#settings-center');
+  await expect(settingsCenter).toBeVisible();
+  expect(await settingsCenter.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await page.getByRole('button', { name: '保存设置' }).click();
   await expect(page.getByLabel('快捷模型')).toHaveValue('vision-model');
   await page.getByLabel('消息内容').fill('你好');

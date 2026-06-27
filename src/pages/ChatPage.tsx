@@ -1,3 +1,4 @@
+import * as Dialog from '@radix-ui/react-dialog';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Menu, Search, Settings as SettingsIcon, X } from 'lucide-react';
 import type { AppSettings, ChatMessage } from '../domain/types';
@@ -37,6 +38,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
   const [draftText, setDraftText] = useState('');
   const [isResettingLocalData, setIsResettingLocalData] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isSettingsDirty, setIsSettingsDirty] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawers = useDrawers();
@@ -93,8 +95,27 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
   }
 
   function handleCloseDrawers() {
+    if (drawers.isSettingsDrawerOpen) {
+      handleSettingsDialogOpenChange(false);
+      return;
+    }
+
     drawers.closeDrawers();
     showFeedback('已关闭');
+  }
+
+  function handleSettingsDialogOpenChange(open: boolean) {
+    if (open) {
+      drawers.openSettingsDrawer();
+      return;
+    }
+
+    if (isSettingsDirty && !window.confirm('放弃未保存的设置更改？')) {
+      return;
+    }
+
+    setIsSettingsDirty(false);
+    drawers.closeDrawers();
   }
 
   function flushPendingSave() {
@@ -178,6 +199,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
   async function handleSaveSettings(nextSettings: AppSettings) {
     const previousProviderSignature = providerSyncSignature(settings);
+    setIsSettingsDirty(false);
     onSettingsChange(nextSettings);
     drawers.closeDrawers();
     showFeedback('设置已保存');
@@ -198,7 +220,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     const model = (nextSettings.selectedModel || nextSettings.model).trim();
 
     if (!model) {
-      throw new Error('模型名不能为空。');
+      throw new Error('默认聊天模型不能为空。');
     }
 
     const response = await sendChatRequest({
@@ -218,6 +240,8 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
   async function handleReset() {
     if (isResettingLocalData) {
+      setIsSettingsDirty(false);
+      drawers.closeDrawers();
       return;
     }
 
@@ -227,6 +251,8 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       syncAccount: retainedSyncAccount
     };
 
+    setIsSettingsDirty(false);
+    drawers.closeDrawers();
     setIsResettingLocalData(true);
     conversations.startLocalReset();
     chatGeneration.stopGeneration();
@@ -248,6 +274,8 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       await conversations.refreshConversations(undefined, true).catch(() => {});
     } finally {
       setIsResettingLocalData(false);
+      setIsSettingsDirty(false);
+      drawers.closeDrawers();
     }
   }
 
@@ -431,7 +459,11 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
         setIsCommandPaletteOpen(false);
         return;
       }
-      if (drawers.isConversationDrawerOpen || drawers.isSettingsDrawerOpen) {
+      if (drawers.isSettingsDrawerOpen) {
+        handleSettingsDialogOpenChange(false);
+        return;
+      }
+      if (drawers.isConversationDrawerOpen) {
         drawers.closeDrawers();
         return;
       }
@@ -466,6 +498,8 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
         onResetLocalData={handleReset}
         onFetchModels={(nextSettings) => fetchModelList(nextSettings, fetch)}
         onTestProvider={handleTestProvider}
+        onCancel={() => handleSettingsDialogOpenChange(false)}
+        onDirtyChange={setIsSettingsDirty}
         syncStatus={sync.syncStatus}
       />
     </Suspense>
@@ -473,7 +507,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
   return (
     <main className="app-shell" data-theme={themeName}>
-      {(drawers.isConversationDrawerOpen || drawers.isSettingsDrawerOpen) && (
+      {drawers.isConversationDrawerOpen && (
         <button
           type="button"
           className="fixed inset-0 z-40 animate-fade-up bg-slate-950/[0.36] backdrop-blur-sm lg:hidden"
@@ -574,9 +608,9 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
 
           <button
             type="button"
-            className="soft-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:hidden"
+            className="soft-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
             aria-label="打开设置"
-            aria-controls="settings-sidebar"
+            aria-controls="settings-center"
             aria-expanded={drawers.isSettingsDrawerOpen}
             onClick={drawers.openSettingsDrawer}
           >
@@ -647,41 +681,26 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
         />
       </section>
 
-      <aside
-        id="settings-sidebar"
-        className="settings-sidebar"
-        data-open={drawers.isSettingsDrawerOpen}
-        aria-label="设置侧边栏"
-      >
-        <div className="settings-sidebar__rail">
-          <button
-            type="button"
-            className="soft-action inline-flex h-10 w-10 items-center justify-center rounded-full"
-            aria-label="打开设置"
-            aria-controls="settings-sidebar"
-            aria-expanded={drawers.isSettingsDrawerOpen}
-            onClick={drawers.openSettingsDrawer}
+      <Dialog.Root open={drawers.isSettingsDrawerOpen} onOpenChange={handleSettingsDialogOpenChange}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="animate-overlay-in fixed inset-0 z-[100] bg-foreground/40 backdrop-blur-sm" />
+          <Dialog.Content
+            id="settings-center"
+            className="animate-pop-in glass-panel-strong fixed inset-0 z-[110] flex h-dvh w-screen flex-col overflow-hidden rounded-none outline-none lg:left-1/2 lg:top-1/2 lg:inset-auto lg:h-[min(86vh,760px)] lg:w-[min(92vw,1040px)] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-xl"
           >
-            <SettingsIcon aria-hidden="true" size={19} strokeWidth={2.25} />
-          </button>
-        </div>
-
-        <div className="settings-sidebar__panel">
-          {drawers.isSettingsDrawerOpen && (
-            <>
-              <button
-                type="button"
-                className="soft-action absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full"
-                aria-label="收起设置"
-                onClick={handleCloseDrawers}
-              >
-                <X aria-hidden="true" size={18} strokeWidth={2.25} />
-              </button>
-              {settingsPanel}
-            </>
-          )}
-        </div>
-      </aside>
+            <Dialog.Title className="sr-only">设置中心</Dialog.Title>
+            <button
+              type="button"
+              className="soft-action absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full"
+              aria-label="关闭设置"
+              onClick={() => handleSettingsDialogOpenChange(false)}
+            >
+              <X aria-hidden="true" size={18} strokeWidth={2.25} />
+            </button>
+            {drawers.isSettingsDrawerOpen && settingsPanel}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       {isCommandPaletteOpen && (
         <Suspense fallback={null}>

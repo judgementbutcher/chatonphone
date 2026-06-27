@@ -11,6 +11,7 @@ export interface ProviderSettings {
   proxyUrl: string;
   proxyAccessToken: string;
   models: string[];
+  defaultModel?: string;
 }
 
 export interface SyncAccountSettings {
@@ -43,7 +44,7 @@ export interface AppSettings {
   proxyAccessToken: string;
   providers?: ProviderSettings[];
   selectedProviderId?: string;
-  selectedModel?: string; // 设置界面选择的模型（仅用于测试）
+  selectedModel?: string; // 兼容字段：当前供应商的默认聊天模型
   syncAccount?: SyncAccountSettings;
   darkMode?: boolean;
   personas?: Persona[]; // 全局角色预设库
