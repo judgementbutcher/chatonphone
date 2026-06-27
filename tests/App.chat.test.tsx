@@ -18,7 +18,10 @@ function streamingTextResponse(chunks: string[]): Response {
       controller.enqueue(encoder.encode('data: [DONE]\n\n'));
       controller.close();
     }
-  }), { status: 200 });
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' }
+  });
 }
 
 function deferredResponse() {
@@ -50,14 +53,15 @@ function saveAuthenticatedSettings() {
 
 async function openSettings(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getAllByRole('button', { name: '打开设置' }).at(-1)!);
+  await screen.findByLabelText('API Base URL');
 }
 
 async function configureProvider(user: ReturnType<typeof userEvent.setup>) {
   await openSettings(user);
   await user.type(screen.getByLabelText('API Base URL'), 'https://gateway.example.com/v1');
   await user.type(screen.getByLabelText('API Key'), 'secret');
-  await user.click(screen.getByRole('button', { name: '拉取模型列表' }));
-  await waitFor(() => expect(screen.getByLabelText('模型名')).toHaveValue('vision-model'));
+  await user.click(screen.getByRole('button', { name: '拉取模型' }));
+  await waitFor(() => expect(screen.getByLabelText('默认聊天模型')).toHaveValue('vision-model'));
   await user.click(screen.getByRole('button', { name: '保存设置' }));
 }
 

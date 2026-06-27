@@ -23,7 +23,10 @@ function streamingTextResponse(chunks: string[]): Response {
       controller.enqueue(encoder.encode('data: [DONE]\n\n'));
       controller.close();
     }
-  }), { status: 200 });
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' }
+  });
 }
 
 function authenticatedSettings(overrides: Partial<AppSettings> = {}): AppSettings {
@@ -46,6 +49,7 @@ function saveAuthenticatedSettings(overrides: Partial<AppSettings> = {}) {
 
 async function openSettings(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getAllByRole('button', { name: '打开设置' }).at(-1)!);
+  await screen.findByLabelText('API Base URL');
 }
 
 describe('App', () => {
@@ -148,7 +152,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByLabelText('消息内容')).toBeInTheDocument());
     await openSettings(user);
     expect(screen.getByLabelText('API Base URL')).toHaveValue('https://openrouter.ai/api/v1');
-    expect(screen.getByLabelText('模型名')).toHaveValue('synced-model');
+    expect(screen.getByLabelText('默认聊天模型')).toHaveValue('synced-model');
     expect(fetchMock.mock.calls[0][0]).toBe('/auth/login');
     expect(fetchMock.mock.calls[1][0]).toBe('/sync/settings/desktop-user');
     expect(fetchMock.mock.calls[1][1]?.headers).toMatchObject({
@@ -196,6 +200,7 @@ describe('App', () => {
 
     await openSettings(user);
     await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    await user.click(screen.getAllByRole('button', { name: '清除本机数据' }).at(-1)!);
 
     await waitFor(() => {
       expect(screen.queryByText('你好')).not.toBeInTheDocument();
@@ -337,7 +342,7 @@ describe('App', () => {
 
     await openSettings(userEvent.setup());
     await waitFor(() => expect(screen.getByLabelText('API Base URL')).toHaveValue('https://openrouter.ai/api/v1'));
-    expect(screen.getByLabelText('模型名')).toHaveValue('remote-model');
+    expect(screen.getByLabelText('默认聊天模型')).toHaveValue('remote-model');
     expect(fetchMock).toHaveBeenCalledWith('/sync/settings/desktop-user', expect.objectContaining({
       method: 'GET',
       headers: expect.objectContaining({
@@ -417,13 +422,100 @@ describe('App', () => {
     render(<App />);
 
     await openSettings(userEvent.setup());
-    await waitFor(() => expect(screen.getByLabelText('模型名')).toHaveValue('startup-model'));
+    await waitFor(() => expect(screen.getByLabelText('默认聊天模型')).toHaveValue('startup-model'));
 
     nowSpy.mockReturnValue(7000);
     fireEvent.focus(window);
 
-    await waitFor(() => expect(screen.getByLabelText('模型名')).toHaveValue('resume-model'));
+    await waitFor(() => expect(screen.getByLabelText('默认聊天模型')).toHaveValue('resume-model'));
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the latest chat model when resume sync runs after switching models', async () => {
+    const user = userEvent.setup();
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        settings: {
+          selectedProviderId: 'openrouter',
+          selectedModel: 'setup-model',
+          providers: [
+            {
+              id: 'openrouter',
+              name: 'OpenRouter',
+              apiBaseUrl: 'https://openrouter.ai/api/v1',
+              apiKey: 'remote-secret',
+              requestMode: 'proxy',
+              proxyUrl: '',
+              proxyAccessToken: '',
+              models: ['setup-model', 'chat-model']
+            }
+          ],
+          syncAccount: {
+            endpoint: '',
+            accountId: 'desktop-user',
+            accessToken: '',
+            autoSync: true
+          }
+        }
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        settings: {
+          selectedProviderId: 'openrouter',
+          selectedModel: 'setup-model',
+          providers: [
+            {
+              id: 'openrouter',
+              name: 'OpenRouter',
+              apiBaseUrl: 'https://openrouter.ai/api/v1',
+              apiKey: 'remote-secret',
+              requestMode: 'proxy',
+              proxyUrl: '',
+              proxyAccessToken: '',
+              models: ['setup-model', 'chat-model']
+            }
+          ],
+          syncAccount: {
+            endpoint: '',
+            accountId: 'desktop-user',
+            accessToken: '',
+            autoSync: true
+          }
+        }
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    saveAuthenticatedSettings({
+      syncAccount: {
+        endpoint: '',
+        accountId: 'desktop-user',
+        accessToken: 'saved-token',
+        autoSync: true
+      }
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText('桌面模型选择')).toHaveValue('setup-model'));
+    await user.selectOptions(screen.getByLabelText('桌面模型选择'), 'chat-model');
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem('chatonphone.settings.v1') ?? '{}')).toMatchObject({
+        model: 'chat-model',
+        chatModel: 'chat-model',
+        selectedModel: 'setup-model'
+      });
+    });
+
+    nowSpy.mockReturnValue(7000);
+    fireEvent.focus(window);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText('桌面模型选择')).toHaveValue('chat-model');
+    expect(JSON.parse(localStorage.getItem('chatonphone.settings.v1') ?? '{}')).toMatchObject({
+      model: 'chat-model',
+      chatModel: 'chat-model',
+      selectedModel: 'setup-model'
+    });
   });
 
   it('tests a manually configured provider through the chat endpoint', async () => {
@@ -438,8 +530,8 @@ describe('App', () => {
     await openSettings(user);
     await user.type(screen.getByLabelText('API Base URL'), 'https://gateway.example.com/v1');
     await user.type(screen.getByLabelText('API Key'), 'secret');
-    await user.type(screen.getByLabelText('模型名'), 'manual-model');
-    await user.click(screen.getByRole('button', { name: '测试供应商' }));
+    await user.type(screen.getByLabelText('默认聊天模型'), 'manual-model');
+    await user.click(screen.getByRole('button', { name: '测试连接' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/v1/chat/completions', expect.objectContaining({
       method: 'POST',
@@ -502,6 +594,7 @@ describe('App', () => {
 
     await openSettings(user);
     await waitFor(() => expect(screen.getByLabelText('API Base URL')).toHaveValue('https://openrouter.ai/api/v1'));
+    await user.click(screen.getByRole('button', { name: '关闭设置' }));
 
     await user.type(screen.getByLabelText('消息内容'), '你好');
     await user.click(screen.getByRole('button', { name: '发送' }));

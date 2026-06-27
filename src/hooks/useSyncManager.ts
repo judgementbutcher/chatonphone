@@ -40,7 +40,8 @@ function providerSyncSignature(settings: AppSettings): string {
     proxyAccessToken: settings.proxyAccessToken,
     providers: settings.providers,
     selectedProviderId: settings.selectedProviderId,
-    selectedModel: settings.selectedModel
+    selectedModel: settings.selectedModel,
+    personas: settings.personas
   });
 }
 
@@ -145,6 +146,12 @@ export function useSyncManager(): UseSyncManagerReturn {
 
 // Hook for auto-sync on startup and resume
 export function useAutoSync(settings: AppSettings, pullSyncedSettings: (reason: 'startup' | 'resume', currentSettings: AppSettings) => Promise<AppSettings | null>, onSettingsUpdated: (settings: AppSettings) => void) {
+  const latestSettingsRef = useRef(settings);
+
+  useEffect(() => {
+    latestSettingsRef.current = settings;
+  }, [settings]);
+
   useEffect(() => {
     if (!shouldAutoSyncAccount(settings)) {
       return;
@@ -163,8 +170,10 @@ export function useAutoSync(settings: AppSettings, pullSyncedSettings: (reason: 
     }
 
     function handleResume() {
-      if (document.visibilityState === 'visible') {
-        void pullSyncedSettings('resume', settings).then((updated) => {
+      const latestSettings = latestSettingsRef.current;
+
+      if (document.visibilityState === 'visible' && shouldAutoSyncAccount(latestSettings)) {
+        void pullSyncedSettings('resume', latestSettings).then((updated) => {
           if (updated) {
             onSettingsUpdated(updated);
           }

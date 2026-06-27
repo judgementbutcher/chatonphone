@@ -1,8 +1,9 @@
 import { MessageSquare, MessageSquarePlus, Pencil, Trash2 } from 'lucide-react';
-import type { Conversation } from '../domain/types';
+import { useEffect, useState } from 'react';
+import type { ConversationSummary } from '../domain/types';
 
 interface Props {
-  conversations: Conversation[];
+  conversations: ConversationSummary[];
   activeId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
@@ -17,6 +18,57 @@ function formatConversationDate(timestamp: number) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+interface RenameInputProps {
+  conversation: ConversationSummary;
+  onRename: (id: string, title: string) => void;
+}
+
+// Holds a local draft of the title so IDB writes only fire on blur/Enter
+// instead of per-keystroke (see useConversations.enqueueConversationSave).
+function RenameInput({ conversation, onRename }: RenameInputProps) {
+  const [editingTitle, setEditingTitle] = useState(conversation.title);
+
+  // Sync external title updates (e.g. derived titles, sync) when not actively
+  // editing. The DOM stays controlled, so we just rebase the draft.
+  useEffect(() => {
+    setEditingTitle(conversation.title);
+  }, [conversation.title]);
+
+  function commit() {
+    const nextTitle = editingTitle.trim();
+
+    if (!nextTitle || nextTitle === conversation.title) {
+      setEditingTitle(conversation.title);
+      return;
+    }
+
+    // Fire and forget — onRename is async (IDB), but the UI doesn't need to
+    // await the persistence round-trip.
+    onRename(conversation.id, nextTitle);
+  }
+
+  return (
+    <input
+      aria-label={`重命名 ${conversation.title}`}
+      value={editingTitle}
+      onChange={(event) => setEditingTitle(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commit();
+          event.currentTarget.blur();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          setEditingTitle(conversation.title);
+          event.currentTarget.blur();
+        }
+      }}
+      className="min-w-0 flex-1 bg-transparent outline-none"
+    />
+  );
 }
 
 export default function ConversationList({ conversations, activeId, onSelect, onNew, onRename, onDelete }: Props) {
@@ -83,12 +135,7 @@ export default function ConversationList({ conversations, activeId, onSelect, on
                 <div className="soft-divider-top flex items-center gap-2 px-2.5 py-2 opacity-80 transition group-hover:opacity-100">
                   <label className="tech-control flex min-w-0 flex-1 items-center gap-2 rounded-full px-2.5 py-1.5 text-xs">
                     <Pencil aria-hidden="true" size={13} strokeWidth={2.15} className="shrink-0 text-muted-foreground" />
-                    <input
-                      aria-label={`重命名 ${conversation.title}`}
-                      value={conversation.title}
-                      onChange={(event) => onRename(conversation.id, event.target.value)}
-                      className="min-w-0 flex-1 bg-transparent outline-none"
-                    />
+                    <RenameInput conversation={conversation} onRename={onRename} />
                   </label>
 
                   <button

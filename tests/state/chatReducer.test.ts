@@ -149,4 +149,131 @@ describe('chatReducer', () => {
       error: null
     });
   });
+
+  it('deletes a message by id', () => {
+    const state = {
+      ...initialChatState,
+      messages: [
+        { id: 'u1', role: 'user' as const, text: '问题1', attachments: [], createdAt: 1 },
+        { id: 'a1', role: 'assistant' as const, text: '回答1', attachments: [], createdAt: 2 },
+        { id: 'u2', role: 'user' as const, text: '问题2', attachments: [], createdAt: 3 }
+      ]
+    };
+
+    expect(chatReducer(state, { type: 'delete-message', messageId: 'a1' }).messages).toEqual([
+      { id: 'u1', role: 'user', text: '问题1', attachments: [], createdAt: 1 },
+      { id: 'u2', role: 'user', text: '问题2', attachments: [], createdAt: 3 }
+    ]);
+  });
+
+  it('updates message content and clears attachments', () => {
+    const state = {
+      ...initialChatState,
+      messages: [
+        {
+          id: 'u1',
+          role: 'user' as const,
+          text: '旧内容',
+          attachments: [
+            {
+              id: 'img1',
+              name: 'test.jpg',
+              mimeType: 'image/jpeg',
+              dataUrl: 'data:image/jpeg;base64,abc',
+              previewUrl: 'blob:xyz',
+              width: 100,
+              height: 100,
+              sizeBytes: 1000
+            }
+          ],
+          createdAt: 1
+        }
+      ]
+    };
+
+    const updated = chatReducer(state, { type: 'update-message-content', messageId: 'u1', text: '新内容' });
+
+    expect(updated.messages[0].text).toBe('新内容');
+    expect(updated.messages[0].attachments).toEqual([]);
+  });
+
+  it('snapshots the prior answer into a version array on first regeneration', () => {
+    const state = {
+      ...initialChatState,
+      messages: [
+        { id: 'u1', role: 'user' as const, text: '问题', attachments: [], createdAt: 1 },
+        { id: 'a1', role: 'assistant' as const, text: '第一版回答', attachments: [], createdAt: 2 }
+      ]
+    };
+
+    const regenerating = chatReducer(state, { type: 'begin-regeneration', messageId: 'a1' });
+    const assistant = regenerating.messages[1];
+
+    expect(assistant.text).toBe('');
+    expect(assistant.versions).toEqual(['第一版回答', '']);
+    expect(assistant.activeVersionIndex).toBe(1);
+    expect(regenerating.isGenerating).toBe(true);
+    expect(regenerating.activeAssistantMessageId).toBe('a1');
+  });
+
+  it('keeps streamed deltas in sync with the active version slot', () => {
+    const state = {
+      ...initialChatState,
+      messages: [
+        { id: 'u1', role: 'user' as const, text: '问题', attachments: [], createdAt: 1 },
+        { id: 'a1', role: 'assistant' as const, text: '第一版', attachments: [], createdAt: 2 }
+      ]
+    };
+
+    const regenerating = chatReducer(state, { type: 'begin-regeneration', messageId: 'a1' });
+    const streamed = chatReducer(regenerating, { type: 'append-assistant-delta', messageId: 'a1', delta: '第二版' });
+    const assistant = streamed.messages[1];
+
+    expect(assistant.text).toBe('第二版');
+    expect(assistant.versions).toEqual(['第一版', '第二版']);
+  });
+
+  it('switches the active version and mirrors it into text', () => {
+    const state = {
+      ...initialChatState,
+      messages: [
+        { id: 'u1', role: 'user' as const, text: '问题', attachments: [], createdAt: 1 },
+        {
+          id: 'a1',
+          role: 'assistant' as const,
+          text: '第二版',
+          attachments: [],
+          createdAt: 2,
+          versions: ['第一版', '第二版'],
+          activeVersionIndex: 1
+        }
+      ]
+    };
+
+    const switched = chatReducer(state, { type: 'switch-version', messageId: 'a1', versionIndex: 0 });
+    const assistant = switched.messages[1];
+
+    expect(assistant.text).toBe('第一版');
+    expect(assistant.activeVersionIndex).toBe(0);
+  });
+
+  it('clamps an out-of-range version index when switching', () => {
+    const state = {
+      ...initialChatState,
+      messages: [
+        {
+          id: 'a1',
+          role: 'assistant' as const,
+          text: '第二版',
+          attachments: [],
+          createdAt: 2,
+          versions: ['第一版', '第二版'],
+          activeVersionIndex: 1
+        }
+      ]
+    };
+
+    expect(chatReducer(state, { type: 'switch-version', messageId: 'a1', versionIndex: 9 }).messages[0].activeVersionIndex).toBe(1);
+    expect(chatReducer(state, { type: 'switch-version', messageId: 'a1', versionIndex: -3 }).messages[0].activeVersionIndex).toBe(0);
+  });
 });

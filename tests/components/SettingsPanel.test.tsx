@@ -132,9 +132,9 @@ describe('SettingsPanel', () => {
 
     await user.type(screen.getByLabelText('API Base URL'), 'https://openrouter.ai/api/v1');
     await user.type(screen.getByLabelText('API Key'), 'openrouter-secret');
-    await user.click(screen.getByRole('button', { name: '拉取模型列表' }));
-    await waitFor(() => expect(screen.getByLabelText('模型列表')).toHaveValue('anthropic/claude-3.5-sonnet'));
-    await user.selectOptions(screen.getByLabelText('模型名'), 'google/gemini-2.5-pro');
+    await user.click(screen.getByRole('button', { name: '拉取模型' }));
+    await waitFor(() => expect(screen.getByLabelText('默认聊天模型')).toHaveValue('anthropic/claude-3.5-sonnet'));
+    await user.selectOptions(screen.getByLabelText('默认聊天模型'), 'google/gemini-2.5-pro');
     await user.click(screen.getByRole('button', { name: '保存设置' }));
 
     expect(onFetchModels).toHaveBeenCalledWith(expect.objectContaining({
@@ -142,12 +142,13 @@ describe('SettingsPanel', () => {
       apiKey: 'openrouter-secret'
     }));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'anthropic/claude-3.5-sonnet',
-      chatModel: 'anthropic/claude-3.5-sonnet',
+      model: 'google/gemini-2.5-pro',
+      chatModel: 'google/gemini-2.5-pro',
       selectedModel: 'google/gemini-2.5-pro',
       providers: expect.arrayContaining([
         expect.objectContaining({
-          models: ['anthropic/claude-3.5-sonnet', 'google/gemini-2.5-pro']
+          models: ['anthropic/claude-3.5-sonnet', 'google/gemini-2.5-pro'],
+          defaultModel: 'google/gemini-2.5-pro'
         })
       ])
     }));
@@ -201,16 +202,16 @@ describe('SettingsPanel', () => {
     await user.type(screen.getByLabelText('供应商名称'), 'OpenRouter');
     await user.type(screen.getByLabelText('API Base URL'), 'https://openrouter.ai/api/v1');
     await user.type(screen.getByLabelText('API Key'), 'openrouter-secret');
-    await user.click(screen.getByRole('button', { name: '拉取模型列表' }));
-    await waitFor(() => expect(screen.getByLabelText('模型列表')).toHaveValue('anthropic/claude-3.5-sonnet'));
-    await user.selectOptions(screen.getByLabelText('模型名'), 'google/gemini-2.5-pro');
+    await user.click(screen.getByRole('button', { name: '拉取模型' }));
+    await waitFor(() => expect(screen.getByLabelText('默认聊天模型')).toHaveValue('anthropic/claude-3.5-sonnet'));
+    await user.selectOptions(screen.getByLabelText('默认聊天模型'), 'google/gemini-2.5-pro');
     await user.click(screen.getByRole('button', { name: '保存设置' }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       apiBaseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'openrouter-secret',
-      model: 'anthropic/claude-3.5-sonnet',
-      chatModel: 'anthropic/claude-3.5-sonnet',
+      model: 'google/gemini-2.5-pro',
+      chatModel: 'google/gemini-2.5-pro',
       selectedProviderId: 'provider-2',
       selectedModel: 'google/gemini-2.5-pro',
       providers: expect.arrayContaining([
@@ -219,7 +220,8 @@ describe('SettingsPanel', () => {
           name: 'OpenRouter',
           apiBaseUrl: 'https://openrouter.ai/api/v1',
           apiKey: 'openrouter-secret',
-          models: ['anthropic/claude-3.5-sonnet', 'google/gemini-2.5-pro']
+          models: ['anthropic/claude-3.5-sonnet', 'google/gemini-2.5-pro'],
+          defaultModel: 'google/gemini-2.5-pro'
         })
       ])
     }));
@@ -271,12 +273,12 @@ describe('SettingsPanel', () => {
 
     expect(screen.getByLabelText('API Base URL')).toHaveValue('https://openrouter.ai/api/v1');
     expect(screen.getByLabelText('API Key')).toHaveValue('openrouter-secret');
-    expect(screen.getByLabelText('模型名')).toHaveValue('anthropic/claude-3.5-sonnet');
+    expect(screen.getByLabelText('默认聊天模型')).toHaveValue('anthropic/claude-3.5-sonnet');
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       apiBaseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'openrouter-secret',
-      model: 'gpt-4o-mini',
-      chatModel: 'gpt-4o-mini',
+      model: 'anthropic/claude-3.5-sonnet',
+      chatModel: 'anthropic/claude-3.5-sonnet',
       selectedModel: 'anthropic/claude-3.5-sonnet',
       requestMode: 'proxy',
       proxyUrl: '',
@@ -293,21 +295,23 @@ describe('SettingsPanel', () => {
 
     await user.type(screen.getByLabelText('API Base URL'), 'https://gateway.example.com/v1');
     await user.type(screen.getByLabelText('API Key'), 'secret');
-    await user.type(screen.getByLabelText('模型名'), 'manual-model');
+    await user.type(screen.getByLabelText('默认聊天模型'), 'manual-model');
     await user.click(screen.getByRole('button', { name: '保存设置' }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       model: 'manual-model',
+      chatModel: 'manual-model',
       selectedModel: 'manual-model',
       providers: expect.arrayContaining([
         expect.objectContaining({
-          models: ['manual-model']
+          models: ['manual-model'],
+          defaultModel: 'manual-model'
         })
       ])
     }));
   });
 
-  it('uses the model list dropdown to choose the active model', async () => {
+  it('uses the default chat model dropdown to choose the active model', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
 
@@ -329,18 +333,52 @@ describe('SettingsPanel', () => {
       />
     );
 
-    await user.selectOptions(screen.getByLabelText('模型列表'), 'beta-model');
+    await user.selectOptions(screen.getByLabelText('默认聊天模型'), 'beta-model');
     await user.click(screen.getByRole('button', { name: '保存设置' }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'alpha-model',
-      chatModel: 'alpha-model',
+      model: 'beta-model',
+      chatModel: 'beta-model',
       selectedModel: 'beta-model',
       providers: expect.arrayContaining([
         expect.objectContaining({
-          models: ['alpha-model', 'beta-model']
+          models: ['alpha-model', 'beta-model'],
+          defaultModel: 'beta-model'
         })
       ])
+    }));
+  });
+
+  it('syncs the chat model when saving the provider default model', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SettingsPanel
+        settings={{
+          ...defaultSettings,
+          providers: [
+            {
+              ...defaultSettings.providers![0],
+              models: ['setup-model', 'chat-model']
+            }
+          ],
+          selectedModel: 'setup-model',
+          model: 'chat-model',
+          chatModel: 'chat-model'
+        }}
+        onSave={onSave}
+        onResetLocalData={vi.fn()}
+      />
+    );
+
+    await user.selectOptions(screen.getByLabelText('默认聊天模型'), 'setup-model');
+    await user.click(screen.getByRole('button', { name: '保存设置' }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'setup-model',
+      chatModel: 'setup-model',
+      selectedModel: 'setup-model'
     }));
   });
 
@@ -359,19 +397,28 @@ describe('SettingsPanel', () => {
 
     await user.type(screen.getByLabelText('API Base URL'), 'https://gateway.example.com/v1');
     await user.type(screen.getByLabelText('API Key'), 'secret');
-    await user.type(screen.getByLabelText('模型名'), 'manual-model');
-    await user.click(screen.getByRole('button', { name: '测试供应商' }));
+    await user.type(screen.getByLabelText('默认聊天模型'), 'manual-model');
+    await user.click(screen.getByRole('button', { name: '测试连接' }));
 
-    await waitFor(() => expect(onTestProvider).toHaveBeenCalledWith(expect.objectContaining({
-      apiBaseUrl: 'https://gateway.example.com/v1',
-      apiKey: 'secret',
-      model: 'manual-model',
+    await waitFor(() => {
+      expect(onTestProvider).toHaveBeenCalledWith(expect.objectContaining({
+        apiBaseUrl: 'https://gateway.example.com/v1',
+        apiKey: 'secret',
+        model: 'manual-model',
+        providers: expect.arrayContaining([
+          expect.objectContaining({
+            models: ['manual-model']
+          })
+        ])
+      }));
+    });
+    expect(onTestProvider).toHaveBeenCalledWith(expect.objectContaining({
       providers: expect.arrayContaining([
         expect.objectContaining({
-          models: ['manual-model']
+          defaultModel: 'manual-model'
         })
       ])
-    })));
+    }));
     expect(await screen.findByText('测试通过，供应商可用。')).toBeInTheDocument();
   });
 
@@ -434,5 +481,98 @@ describe('SettingsPanel', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       darkMode: true
     }));
+  });
+
+  it('confirms before deleting a provider', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SettingsPanel
+        settings={{
+          ...defaultSettings,
+          selectedProviderId: 'openrouter',
+          providers: [
+            {
+              ...defaultSettings.providers![0],
+              id: 'openai',
+              name: 'OpenAI',
+              models: ['gpt-4o-mini'],
+              defaultModel: 'gpt-4o-mini'
+            },
+            {
+              ...defaultSettings.providers![0],
+              id: 'openrouter',
+              name: 'OpenRouter',
+              apiBaseUrl: 'https://openrouter.ai/api/v1',
+              apiKey: 'openrouter-secret',
+              models: ['anthropic/claude-3.5-sonnet'],
+              defaultModel: 'anthropic/claude-3.5-sonnet'
+            }
+          ]
+        }}
+        onSave={onSave}
+        onResetLocalData={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: '删除供应商' }));
+    expect(screen.getByRole('alertdialog', { name: '删除供应商？' })).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: '删除供应商' }).at(-1)!);
+    await user.click(screen.getByRole('button', { name: '保存设置' }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      selectedProviderId: 'openai',
+      providers: [
+        expect.objectContaining({
+          id: 'openai'
+        })
+      ]
+    }));
+  });
+
+  it('confirms before clearing local data', async () => {
+    const onResetLocalData = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SettingsPanel
+        settings={defaultSettings}
+        onSave={vi.fn()}
+        onResetLocalData={onResetLocalData}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: '清除本机数据' }));
+    expect(onResetLocalData).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog', { name: '清除本机数据？' })).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: '清除本机数据' }).at(-1)!);
+
+    expect(onResetLocalData).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms before discarding an unsaved draft from cancel', async () => {
+    const onCancel = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SettingsPanel
+        settings={defaultSettings}
+        onSave={vi.fn()}
+        onResetLocalData={vi.fn()}
+        onCancel={onCancel}
+      />
+    );
+
+    await user.type(screen.getByLabelText('API Key'), 'secret');
+    await user.click(screen.getByRole('button', { name: '取消' }));
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog', { name: '放弃未保存更改？' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '放弃更改' }));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

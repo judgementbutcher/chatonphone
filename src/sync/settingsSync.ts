@@ -31,6 +31,7 @@ function providerSettingsPayload(settings: AppSettings): Partial<AppSettings> {
     providers: normalized.providers,
     selectedProviderId: normalized.selectedProviderId,
     selectedModel: normalized.selectedModel,
+    personas: normalized.personas,
     syncAccount: {
       endpoint: normalized.syncAccount?.endpoint ?? '',
       accountId: normalized.syncAccount?.accountId ?? '',
@@ -89,10 +90,16 @@ export async function downloadSyncedSettings(
     throw new Error('同步数据为空。');
   }
 
-  const providerSettings = providerSettingsPayload({
+  const downloadedSettings = {
     ...currentSettings,
     ...data.settings,
     syncAccount: account
+  };
+  const downloadedDefaultModel = typeof data.settings.selectedModel === 'string' ? data.settings.selectedModel.trim() : '';
+  const providerSettings = providerSettingsPayload({
+    ...downloadedSettings,
+    model: typeof data.settings.model === 'string' ? data.settings.model : downloadedDefaultModel || downloadedSettings.model,
+    chatModel: typeof data.settings.chatModel === 'string' ? data.settings.chatModel : downloadedDefaultModel || downloadedSettings.chatModel
   });
 
   return getActiveProviderSettings({
