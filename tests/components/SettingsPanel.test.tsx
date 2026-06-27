@@ -99,6 +99,7 @@ describe('SettingsPanel', () => {
 
     render(<SettingsPanel settings={defaultSettings} onSave={onSave} onResetLocalData={vi.fn()} />);
 
+    await user.click(screen.getByRole('button', { name: '生成参数' }));
     await user.clear(screen.getByLabelText('Temperature'));
     await user.type(screen.getByLabelText('Temperature'), '0.2');
     await user.clear(screen.getByLabelText('Max tokens'));
@@ -422,7 +423,9 @@ describe('SettingsPanel', () => {
     expect(await screen.findByText('测试通过，供应商可用。')).toBeInTheDocument();
   });
 
-  it('shows the sync account as read-only without login or register controls', () => {
+  it('shows the sync account as read-only without login or register controls', async () => {
+    const user = userEvent.setup();
+
     render(
       <SettingsPanel
         settings={{
@@ -438,6 +441,8 @@ describe('SettingsPanel', () => {
         onResetLocalData={vi.fn()}
       />
     );
+
+    await user.click(screen.getByRole('button', { name: '同步账号' }));
 
     expect(screen.getByText('当前账号')).toBeInTheDocument();
     expect(screen.getByText('desktop-user')).toBeInTheDocument();
@@ -475,6 +480,7 @@ describe('SettingsPanel', () => {
       />
     );
 
+    await user.click(screen.getByRole('button', { name: '外观' }));
     await user.click(screen.getByLabelText('暗色模式'));
     await user.click(screen.getByRole('button', { name: '保存设置' }));
 
@@ -543,6 +549,7 @@ describe('SettingsPanel', () => {
       />
     );
 
+    await user.click(screen.getByRole('button', { name: '数据与危险区' }));
     await user.click(screen.getByRole('button', { name: '清除本机数据' }));
     expect(onResetLocalData).not.toHaveBeenCalled();
     expect(screen.getByRole('alertdialog', { name: '清除本机数据？' })).toBeInTheDocument();

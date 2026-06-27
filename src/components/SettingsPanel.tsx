@@ -2,12 +2,16 @@ import * as Dialog from '@radix-ui/react-dialog';
 import {
   Activity,
   AlertTriangle,
+  CheckCircle2,
+  Circle,
   DatabaseZap,
   KeyRound,
+  Minus,
   Moon,
   Plus,
   RefreshCw,
   Save,
+  Search,
   SlidersHorizontal,
   Trash2,
   UserCog,
@@ -196,6 +200,12 @@ const selectClass = inputClass;
 const secondaryButtonClass = 'soft-action inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold disabled:opacity-45';
 const destructiveButtonClass = 'danger-action inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold disabled:opacity-45';
 
+function modelGroupName(model: string): string {
+  const [group] = model.split('/');
+
+  return group && group !== model ? group : 'custom';
+}
+
 export default function SettingsPanel({
   settings,
   onSave,
@@ -215,6 +225,8 @@ export default function SettingsPanel({
   const [providerTestStatus, setProviderTestStatus] = useState('');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isTestingProvider, setIsTestingProvider] = useState(false);
+  const [providerSearch, setProviderSearch] = useState('');
+  const [modelSearch, setModelSearch] = useState('');
 
   useEffect(() => {
     onDirtyChange?.(isDraftDirty);
@@ -241,6 +253,23 @@ export default function SettingsPanel({
   const activeModelOptions = activeProvider.models;
   const defaultModelIsListed = defaultModel ? activeModelOptions.includes(defaultModel) : true;
   const syncAccount = draft.syncAccount ?? defaultSettings.syncAccount!;
+  const filteredProviders = providers.filter((provider) => {
+    const keyword = providerSearch.trim().toLowerCase();
+
+    return !keyword || provider.name.toLowerCase().includes(keyword) || providerDefaultModel(provider).toLowerCase().includes(keyword);
+  });
+  const filteredModels = activeModelOptions.filter((model) => model.toLowerCase().includes(modelSearch.trim().toLowerCase()));
+  const groupedModels = filteredModels.reduce<Array<{ group: string; models: string[] }>>((groups, model) => {
+    const group = modelGroupName(model);
+    const existingGroup = groups.find((currentGroup) => currentGroup.group === group);
+
+    if (existingGroup) {
+      existingGroup.models.push(model);
+      return groups;
+    }
+
+    return [...groups, { group, models: [model] }];
+  }, []);
 
   function updateDraft(nextDraft: AppSettings) {
     setIsDraftDirty(true);
@@ -277,6 +306,13 @@ export default function SettingsPanel({
 
   function handleDefaultModelChange(model: string) {
     updateActiveProvider({ defaultModel: model });
+  }
+
+  function handleRemoveModel(model: string) {
+    const nextModels = activeModelOptions.filter((currentModel) => currentModel !== model);
+    const nextDefaultModel = defaultModel === model ? nextModels[0] ?? '' : defaultModel;
+
+    updateActiveProvider({ models: nextModels, defaultModel: nextDefaultModel });
   }
 
   function handleProviderSelect(providerId: string) {
@@ -425,7 +461,6 @@ export default function SettingsPanel({
 
   function handleSectionChange(section: SettingsSection) {
     setActiveSection(section);
-    document.getElementById(`settings-${section}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
   return (
@@ -494,214 +529,331 @@ export default function SettingsPanel({
         </nav>
 
         <div className="min-h-0 overflow-y-auto px-4 py-5 sm:px-6 scrollbar-thin">
-          <div className="mx-auto max-w-[760px] space-y-8">
-            <Section
-              id="settings-provider"
-              title="模型服务"
-              icon={<SlidersHorizontal aria-hidden="true" size={16} strokeWidth={2.2} />}
-            >
-              <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                <div className="space-y-3">
-                  <Field label="供应商">
-                    <select className={`${selectClass} lg:hidden`} value={activeProvider.id} onChange={(event) => handleProviderSelect(event.target.value)}>
-                      {providers.map((provider) => (
-                        <option key={provider.id} value={provider.id}>{provider.name}</option>
-                      ))}
-                    </select>
-                  </Field>
-
-                  <div className="hidden space-y-2 lg:block" aria-label="供应商列表">
-                    {providers.map((provider) => (
-                      <button
-                        key={provider.id}
-                        type="button"
-                        className={`tech-control flex w-full min-w-0 flex-col rounded-lg px-3 py-2 text-left ${
-                          provider.id === activeProvider.id ? 'shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.72)]' : ''
-                        }`}
-                        onClick={() => handleProviderSelect(provider.id)}
-                      >
-                        <span className="truncate text-sm font-semibold">{provider.name}</span>
-                        <span className="mt-0.5 truncate text-xs text-muted-foreground">{providerDefaultModel(provider) || '未设置模型'}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <button type="button" className={`${secondaryButtonClass} w-full`} onClick={handleAddProvider}>
-                    <Plus aria-hidden="true" size={16} strokeWidth={2.25} />
-                    新增供应商
-                  </button>
-                </div>
-
-                <fieldset className="space-y-4">
-                  <legend className="sr-only">供应商详情</legend>
-                  <Field label="供应商名称">
-                    <input className={inputClass} value={activeProvider.name} onChange={(event) => updateActiveProvider({ name: event.target.value })} />
-                  </Field>
-
-                  <Field label="API Base URL">
-                    <input className={inputClass} value={activeProvider.apiBaseUrl} onChange={(event) => updateActiveProvider({ apiBaseUrl: event.target.value })} />
-                  </Field>
-
-                  <Field label="API Key">
-                    <input className={inputClass} value={activeProvider.apiKey} type="password" onChange={(event) => updateActiveProvider({ apiKey: event.target.value })} />
-                  </Field>
-
-                  <Field label="模型列表">
-                    <textarea
-                      className="tech-control min-h-24 w-full resize-y rounded-lg px-3.5 py-3 text-sm outline-none"
-                      value={activeProvider.models.join('\n')}
-                      placeholder="每行一个模型 ID"
-                      onChange={(event) => {
-                        const models = event.target.value.split('\n').map((model) => model.trim()).filter(Boolean);
-                        updateActiveProvider({ models });
-                      }}
-                    />
-                  </Field>
-
-                  <Field label="默认聊天模型">
-                    {activeModelOptions.length > 0 ? (
-                      <select
-                        aria-label="默认聊天模型"
-                        className={selectClass}
-                        value={activeModelOptions.includes(defaultModel) ? defaultModel : ''}
-                        onChange={(event) => handleDefaultModelChange(event.target.value)}
-                      >
-                        {!defaultModelIsListed && <option value={defaultModel}>{defaultModel}</option>}
-                        {activeModelOptions.map((model) => (
-                          <option key={model} value={model}>{model}</option>
+          <div className={`mx-auto space-y-6 ${activeSection === 'provider' ? 'max-w-[980px]' : 'max-w-[760px]'}`}>
+            {activeSection === 'provider' && (
+              <Section
+                id="settings-provider"
+                title="模型服务"
+                icon={<SlidersHorizontal aria-hidden="true" size={16} strokeWidth={2.2} />}
+              >
+                <div className="grid min-h-[520px] overflow-hidden rounded-xl border border-hairline/60 bg-card/[0.26] lg:grid-cols-[260px_minmax(0,1fr)]">
+                  <aside className="soft-divider-right flex min-h-0 flex-col gap-3 p-3">
+                    <Field label="供应商">
+                      <select className={`${selectClass} lg:hidden`} value={activeProvider.id} onChange={(event) => handleProviderSelect(event.target.value)}>
+                        {providers.map((provider) => (
+                          <option key={provider.id} value={provider.id}>{provider.name}</option>
                         ))}
                       </select>
-                    ) : (
+                    </Field>
+
+                    <label className="tech-control hidden h-10 items-center gap-2 rounded-lg px-3 text-sm lg:flex">
+                      <Search aria-hidden="true" size={15} strokeWidth={2.2} className="text-muted-foreground" />
                       <input
-                        aria-label="默认聊天模型"
-                        className={inputClass}
-                        value={defaultModel}
-                        placeholder="输入默认聊天模型"
-                        onChange={(event) => handleDefaultModelChange(event.target.value)}
+                        aria-label="搜索供应商"
+                        className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+                        value={providerSearch}
+                        placeholder="搜索供应商"
+                        onChange={(event) => setProviderSearch(event.target.value)}
                       />
-                    )}
-                  </Field>
+                    </label>
 
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    <button type="button" className={secondaryButtonClass} disabled={!onFetchModels || isLoadingModels} onClick={handleFetchModels}>
-                      <RefreshCw aria-hidden="true" size={16} strokeWidth={2.25} />
-                      {isLoadingModels ? '拉取中' : '拉取模型'}
-                    </button>
-                    <button type="button" className={secondaryButtonClass} disabled={!onTestProvider || isTestingProvider} onClick={handleTestProvider}>
-                      <Activity aria-hidden="true" size={16} strokeWidth={2.25} />
-                      {isTestingProvider ? '测试中' : '测试连接'}
-                    </button>
-                    <button
-                      type="button"
-                      className={destructiveButtonClass}
-                      disabled={providers.length <= 1}
-                      onClick={() => setConfirmation('delete-provider')}
-                    >
-                      <Trash2 aria-hidden="true" size={16} strokeWidth={2.25} />
-                      删除供应商
-                    </button>
-                  </div>
+                    <div className="hidden min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 lg:block" aria-label="供应商列表">
+                      {filteredProviders.map((provider) => {
+                        const isActive = provider.id === activeProvider.id;
+                        const isConfigured = Boolean(provider.apiBaseUrl.trim() && provider.apiKey.trim());
 
-                  {(modelFetchStatus || providerTestStatus) && (
-                    <div className="chip space-y-2 rounded-lg px-3 py-2 text-sm text-muted-foreground">
-                      {modelFetchStatus && <p role="status">{modelFetchStatus}</p>}
-                      {providerTestStatus && <p role="status">{providerTestStatus}</p>}
+                        return (
+                          <button
+                            key={provider.id}
+                            type="button"
+                            aria-pressed={isActive}
+                            className={`tech-control flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition ${
+                              isActive ? 'bg-primary/10 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.72)]' : ''
+                            }`}
+                            onClick={() => handleProviderSelect(provider.id)}
+                          >
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-sm font-bold text-primary">
+                              {(provider.name || '?').trim().slice(0, 1).toUpperCase()}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold">{provider.name || '未命名供应商'}</span>
+                              <span className="mt-0.5 block truncate text-xs text-muted-foreground">{providerDefaultModel(provider) || '未设置模型'}</span>
+                            </span>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isConfigured ? 'bg-primary/12 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                              {isConfigured ? 'ON' : 'OFF'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {filteredProviders.length === 0 && (
+                        <p className="px-3 py-4 text-center text-sm text-muted-foreground">没有匹配的供应商</p>
+                      )}
                     </div>
-                  )}
-                </fieldset>
-              </div>
-            </Section>
 
-            <section id="settings-persona" className="scroll-mt-6">
-              <PersonaManager personas={draft.personas ?? []} onChange={handlePersonasChange} />
-            </section>
+                    <button type="button" className={`${secondaryButtonClass} w-full`} onClick={handleAddProvider}>
+                      <Plus aria-hidden="true" size={16} strokeWidth={2.25} />
+                      新增供应商
+                    </button>
+                  </aside>
 
-            <Section
-              id="settings-generation"
-              title="生成参数"
-              icon={<WandSparkles aria-hidden="true" size={16} strokeWidth={2.2} />}
-            >
-              <fieldset className="space-y-4">
-                <legend className="sr-only">生成参数</legend>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Temperature">
-                    <input
-                      className={inputClass}
-                      value={Number.isFinite(draft.temperature) ? draft.temperature : ''}
-                      type="number"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      onChange={(event) => updateDraft({ ...draft, temperature: event.target.valueAsNumber })}
-                    />
-                  </Field>
-                  <Field label="Max tokens">
-                    <input
-                      className={inputClass}
-                      value={Number.isFinite(draft.maxTokens) ? draft.maxTokens : ''}
-                      type="number"
-                      min="1"
-                      max="1000000"
-                      step="1"
-                      onChange={(event) => updateDraft({ ...draft, maxTokens: event.target.valueAsNumber })}
-                    />
-                  </Field>
+                  <fieldset className="min-w-0 space-y-5 p-4 sm:p-5">
+                    <legend className="sr-only">供应商详情</legend>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <Field label="供应商名称">
+                          <input className={inputClass} value={activeProvider.name} onChange={(event) => updateActiveProvider({ name: event.target.value })} />
+                        </Field>
+                      </div>
+                      <div className="flex items-center gap-2 pt-0 sm:pt-7">
+                        <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary/12 px-3 text-xs font-bold text-primary">
+                          <Circle aria-hidden="true" size={8} fill="currentColor" />
+                          ON
+                        </span>
+                        <button
+                          type="button"
+                          className={destructiveButtonClass}
+                          disabled={providers.length <= 1}
+                          onClick={() => setConfirmation('delete-provider')}
+                        >
+                          <Trash2 aria-hidden="true" size={16} strokeWidth={2.25} />
+                          删除供应商
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4">
+                      <Field label="API Key">
+                        <div className="flex gap-2">
+                          <input
+                            className={inputClass}
+                            value={activeProvider.apiKey}
+                            type="password"
+                            onChange={(event) => updateActiveProvider({ apiKey: event.target.value })}
+                          />
+                          <button type="button" className={`${secondaryButtonClass} shrink-0`} disabled={!onTestProvider || isTestingProvider} onClick={handleTestProvider}>
+                            <Activity aria-hidden="true" size={16} strokeWidth={2.25} />
+                            {isTestingProvider ? '测试中' : '测试连接'}
+                          </button>
+                        </div>
+                      </Field>
+
+                      <Field label="API Host">
+                        <input
+                          aria-label="API Base URL"
+                          className={inputClass}
+                          value={activeProvider.apiBaseUrl}
+                          onChange={(event) => updateActiveProvider({ apiBaseUrl: event.target.value })}
+                        />
+                        <p className="mt-2 truncate text-xs text-muted-foreground">
+                          Preview: {(activeProvider.apiBaseUrl || '').replace(/\/$/, '') || 'https://example.com/v1'}/chat/completions
+                        </p>
+                      </Field>
+
+                      <Field label="默认聊天模型">
+                        {activeModelOptions.length > 0 ? (
+                          <select
+                            aria-label="默认聊天模型"
+                            className={selectClass}
+                            value={activeModelOptions.includes(defaultModel) ? defaultModel : ''}
+                            onChange={(event) => handleDefaultModelChange(event.target.value)}
+                          >
+                            {!defaultModelIsListed && <option value={defaultModel}>{defaultModel}</option>}
+                            {activeModelOptions.map((model) => (
+                              <option key={model} value={model}>{model}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            aria-label="默认聊天模型"
+                            className={inputClass}
+                            value={defaultModel}
+                            placeholder="输入默认聊天模型"
+                            onChange={(event) => handleDefaultModelChange(event.target.value)}
+                          />
+                        )}
+                      </Field>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h4 className="text-sm font-semibold">模型列表</h4>
+                          <p className="mt-1 text-xs text-muted-foreground">{activeModelOptions.length} 个模型</p>
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <label className="tech-control flex h-10 min-w-[220px] items-center gap-2 rounded-lg px-3 text-sm">
+                            <Search aria-hidden="true" size={15} strokeWidth={2.2} className="text-muted-foreground" />
+                            <input
+                              aria-label="搜索模型"
+                              className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+                              value={modelSearch}
+                              placeholder="搜索模型"
+                              onChange={(event) => setModelSearch(event.target.value)}
+                            />
+                          </label>
+                          <button type="button" className={secondaryButtonClass} disabled={!onFetchModels || isLoadingModels} onClick={handleFetchModels}>
+                            <RefreshCw aria-hidden="true" size={16} strokeWidth={2.25} />
+                            {isLoadingModels ? '拉取中' : '拉取模型'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="max-h-[280px] overflow-y-auto rounded-lg border border-hairline/60 bg-background/28">
+                        {groupedModels.map((group) => (
+                          <div key={group.group}>
+                            <div className="soft-divider-bottom bg-card/[0.48] px-3 py-2 text-xs font-bold uppercase text-muted-foreground">
+                              {group.group}
+                            </div>
+                            <div className="divide-y divide-hairline/45">
+                              {group.models.map((model) => {
+                                const isDefault = model === defaultModel;
+
+                                return (
+                                  <div key={model} className="flex min-w-0 items-center gap-2 px-3 py-2.5">
+                                    <button
+                                      type="button"
+                                      className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
+                                      onClick={() => handleDefaultModelChange(model)}
+                                    >
+                                      {isDefault ? (
+                                        <CheckCircle2 aria-hidden="true" size={16} strokeWidth={2.25} className="shrink-0 text-primary" />
+                                      ) : (
+                                        <Circle aria-hidden="true" size={16} strokeWidth={2.25} className="shrink-0 text-muted-foreground" />
+                                      )}
+                                      <span className="truncate">{model}</span>
+                                      {isDefault && <span className="shrink-0 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-bold text-primary">默认</span>}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label={`删除模型 ${model}`}
+                                      className="soft-action inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                                      onClick={() => handleRemoveModel(model)}
+                                    >
+                                      <Minus aria-hidden="true" size={15} strokeWidth={2.25} />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                        {groupedModels.length === 0 && (
+                          <p className="px-3 py-8 text-center text-sm text-muted-foreground">暂无模型，拉取模型或在默认模型中手动输入。</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {(modelFetchStatus || providerTestStatus) && (
+                      <div className="chip space-y-2 rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                        {modelFetchStatus && <p role="status">{modelFetchStatus}</p>}
+                        {providerTestStatus && <p role="status">{providerTestStatus}</p>}
+                      </div>
+                    )}
+                  </fieldset>
                 </div>
-                <ToggleRow
-                  label="Streaming enabled"
-                  checked={draft.stream}
-                  onChange={(checked) => updateDraft({ ...draft, stream: checked })}
-                />
-              </fieldset>
-            </Section>
+              </Section>
+            )}
 
-            <Section
-              id="settings-appearance"
-              title="外观"
-              icon={<Moon aria-hidden="true" size={16} strokeWidth={2.2} />}
-            >
-              <fieldset className="space-y-4">
-                <legend className="sr-only">外观</legend>
-                <ToggleRow
-                  label="暗色模式"
-                  checked={Boolean(draft.darkMode)}
-                  onChange={(checked) => updateDraft({ ...draft, darkMode: checked })}
-                />
-              </fieldset>
-            </Section>
+            {activeSection === 'persona' && (
+              <section id="settings-persona">
+                <PersonaManager personas={draft.personas ?? []} onChange={handlePersonasChange} />
+              </section>
+            )}
 
-            <Section
-              id="settings-sync"
-              title="同步账号"
-              icon={<KeyRound aria-hidden="true" size={16} strokeWidth={2.2} />}
-            >
-              <div className="tech-control rounded-lg px-3 py-3">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-muted-foreground">当前账号</span>
-                  <strong className="max-w-[240px] truncate text-sm font-semibold">{syncAccount.accountId || '未登录'}</strong>
-                </div>
-                {syncStatus && <p className="mt-2 text-sm text-muted-foreground" role="status">{syncStatus}</p>}
-              </div>
-            </Section>
-
-            <Section
-              id="settings-data"
-              title="数据与危险区"
-              icon={<DatabaseZap aria-hidden="true" size={16} strokeWidth={2.2} />}
-            >
-              <div className="tech-control rounded-lg px-3 py-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold">清除本机数据</p>
-                    <p className="mt-1 text-sm text-muted-foreground">移除本机设置、会话和缓存；已登录账号信息会保留用于继续同步。</p>
+            {activeSection === 'generation' && (
+              <Section
+                id="settings-generation"
+                title="生成参数"
+                icon={<WandSparkles aria-hidden="true" size={16} strokeWidth={2.2} />}
+              >
+                <fieldset className="space-y-4">
+                  <legend className="sr-only">生成参数</legend>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Temperature">
+                      <input
+                        className={inputClass}
+                        value={Number.isFinite(draft.temperature) ? draft.temperature : ''}
+                        type="number"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        onChange={(event) => updateDraft({ ...draft, temperature: event.target.valueAsNumber })}
+                      />
+                    </Field>
+                    <Field label="Max tokens">
+                      <input
+                        className={inputClass}
+                        value={Number.isFinite(draft.maxTokens) ? draft.maxTokens : ''}
+                        type="number"
+                        min="1"
+                        max="1000000"
+                        step="1"
+                        onChange={(event) => updateDraft({ ...draft, maxTokens: event.target.valueAsNumber })}
+                      />
+                    </Field>
                   </div>
-                  <button type="button" className={destructiveButtonClass} onClick={() => setConfirmation('reset-data')}>
-                    <DatabaseZap aria-hidden="true" size={17} strokeWidth={2.25} />
-                    清除本机数据
-                  </button>
+                  <ToggleRow
+                    label="Streaming enabled"
+                    checked={draft.stream}
+                    onChange={(checked) => updateDraft({ ...draft, stream: checked })}
+                  />
+                </fieldset>
+              </Section>
+            )}
+
+            {activeSection === 'appearance' && (
+              <Section
+                id="settings-appearance"
+                title="外观"
+                icon={<Moon aria-hidden="true" size={16} strokeWidth={2.2} />}
+              >
+                <fieldset className="space-y-4">
+                  <legend className="sr-only">外观</legend>
+                  <ToggleRow
+                    label="暗色模式"
+                    checked={Boolean(draft.darkMode)}
+                    onChange={(checked) => updateDraft({ ...draft, darkMode: checked })}
+                  />
+                </fieldset>
+              </Section>
+            )}
+
+            {activeSection === 'sync' && (
+              <Section
+                id="settings-sync"
+                title="同步账号"
+                icon={<KeyRound aria-hidden="true" size={16} strokeWidth={2.2} />}
+              >
+                <div className="tech-control rounded-lg px-3 py-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">当前账号</span>
+                    <strong className="max-w-[240px] truncate text-sm font-semibold">{syncAccount.accountId || '未登录'}</strong>
+                  </div>
+                  {syncStatus && <p className="mt-2 text-sm text-muted-foreground" role="status">{syncStatus}</p>}
                 </div>
-              </div>
-            </Section>
+              </Section>
+            )}
+
+            {activeSection === 'data' && (
+              <Section
+                id="settings-data"
+                title="数据与危险区"
+                icon={<DatabaseZap aria-hidden="true" size={16} strokeWidth={2.2} />}
+              >
+                <div className="tech-control rounded-lg px-3 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">清除本机数据</p>
+                      <p className="mt-1 text-sm text-muted-foreground">移除本机设置、会话和缓存；已登录账号信息会保留用于继续同步。</p>
+                    </div>
+                    <button type="button" className={destructiveButtonClass} onClick={() => setConfirmation('reset-data')}>
+                      <DatabaseZap aria-hidden="true" size={17} strokeWidth={2.25} />
+                      清除本机数据
+                    </button>
+                  </div>
+                </div>
+              </Section>
+            )}
           </div>
         </div>
       </div>
