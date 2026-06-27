@@ -49,6 +49,7 @@ function saveAuthenticatedSettings(overrides: Partial<AppSettings> = {}) {
 
 async function openSettings(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getAllByRole('button', { name: '打开设置' }).at(-1)!);
+  await screen.findByLabelText('API Base URL');
 }
 
 describe('App', () => {
@@ -427,6 +428,93 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByLabelText('模型名')).toHaveValue('resume-model'));
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the latest chat model when resume sync runs after switching models', async () => {
+    const user = userEvent.setup();
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        settings: {
+          selectedProviderId: 'openrouter',
+          selectedModel: 'setup-model',
+          providers: [
+            {
+              id: 'openrouter',
+              name: 'OpenRouter',
+              apiBaseUrl: 'https://openrouter.ai/api/v1',
+              apiKey: 'remote-secret',
+              requestMode: 'proxy',
+              proxyUrl: '',
+              proxyAccessToken: '',
+              models: ['setup-model', 'chat-model']
+            }
+          ],
+          syncAccount: {
+            endpoint: '',
+            accountId: 'desktop-user',
+            accessToken: '',
+            autoSync: true
+          }
+        }
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        settings: {
+          selectedProviderId: 'openrouter',
+          selectedModel: 'setup-model',
+          providers: [
+            {
+              id: 'openrouter',
+              name: 'OpenRouter',
+              apiBaseUrl: 'https://openrouter.ai/api/v1',
+              apiKey: 'remote-secret',
+              requestMode: 'proxy',
+              proxyUrl: '',
+              proxyAccessToken: '',
+              models: ['setup-model', 'chat-model']
+            }
+          ],
+          syncAccount: {
+            endpoint: '',
+            accountId: 'desktop-user',
+            accessToken: '',
+            autoSync: true
+          }
+        }
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    saveAuthenticatedSettings({
+      syncAccount: {
+        endpoint: '',
+        accountId: 'desktop-user',
+        accessToken: 'saved-token',
+        autoSync: true
+      }
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText('桌面模型选择')).toHaveValue('setup-model'));
+    await user.selectOptions(screen.getByLabelText('桌面模型选择'), 'chat-model');
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem('chatonphone.settings.v1') ?? '{}')).toMatchObject({
+        model: 'chat-model',
+        chatModel: 'chat-model',
+        selectedModel: 'setup-model'
+      });
+    });
+
+    nowSpy.mockReturnValue(7000);
+    fireEvent.focus(window);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText('桌面模型选择')).toHaveValue('chat-model');
+    expect(JSON.parse(localStorage.getItem('chatonphone.settings.v1') ?? '{}')).toMatchObject({
+      model: 'chat-model',
+      chatModel: 'chat-model',
+      selectedModel: 'setup-model'
+    });
   });
 
   it('tests a manually configured provider through the chat endpoint', async () => {

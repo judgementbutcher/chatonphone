@@ -53,6 +53,7 @@ function saveAuthenticatedSettings() {
 
 async function openSettings(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getAllByRole('button', { name: '打开设置' }).at(-1)!);
+  await screen.findByLabelText('API Base URL');
 }
 
 async function configureProvider(user: ReturnType<typeof userEvent.setup>) {

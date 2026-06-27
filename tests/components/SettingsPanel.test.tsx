@@ -344,6 +344,39 @@ describe('SettingsPanel', () => {
     }));
   });
 
+  it('keeps the chat model independent when saving a different test model', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <SettingsPanel
+        settings={{
+          ...defaultSettings,
+          providers: [
+            {
+              ...defaultSettings.providers![0],
+              models: ['setup-model', 'chat-model']
+            }
+          ],
+          selectedModel: 'setup-model',
+          model: 'chat-model',
+          chatModel: 'chat-model'
+        }}
+        onSave={onSave}
+        onResetLocalData={vi.fn()}
+      />
+    );
+
+    await user.selectOptions(screen.getByLabelText('模型名'), 'setup-model');
+    await user.click(screen.getByRole('button', { name: '保存设置' }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'chat-model',
+      chatModel: 'chat-model',
+      selectedModel: 'setup-model'
+    }));
+  });
+
   it('tests the active provider with the selected manual model', async () => {
     const onTestProvider = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();

@@ -1,9 +1,9 @@
 import { MessageSquare, MessageSquarePlus, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { Conversation } from '../domain/types';
+import type { ConversationSummary } from '../domain/types';
 
 interface Props {
-  conversations: Conversation[];
+  conversations: ConversationSummary[];
   activeId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
@@ -21,7 +21,7 @@ function formatConversationDate(timestamp: number) {
 }
 
 interface RenameInputProps {
-  conversation: Conversation;
+  conversation: ConversationSummary;
   onRename: (id: string, title: string) => void;
 }
 

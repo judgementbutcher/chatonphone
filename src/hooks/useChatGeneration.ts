@@ -1,4 +1,5 @@
-import { useReducer, useRef } from 'react';
+import { useEffect, useReducer, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { nanoid } from 'nanoid';
 import type { AppSettings, ChatMessage, Conversation } from '../domain/types';
 import { chatReducer, initialChatState } from '../state/chatReducer';
@@ -11,6 +12,11 @@ interface ActiveGeneration {
   generationId: string;
   conversationId: string;
   controller: AbortController;
+}
+
+interface PendingAssistantDelta {
+  messageId: string;
+  delta: string;
 }
 
 export interface UseChatGenerationReturn {
@@ -34,6 +40,9 @@ export function useChatGeneration(
   const activeGenerationRef = useRef<ActiveGeneration | null>(null);
   const activeConversationIdRef = useRef(activeConversation.id);
   const systemPromptRef = useRef(activeConversation.systemPrompt);
+  const pendingAssistantDeltaRef = useRef<PendingAssistantDelta | null>(null);
+  const pendingAssistantDeltaFrameRef = useRef<number | null>(null);
+  const pendingAssistantDeltaTimerRef = useRef<number | null>(null);
 
   // Update refs when conversation changes
   activeConversationIdRef.current = activeConversation.id;
@@ -53,6 +62,80 @@ export function useChatGeneration(
     if (isActiveGeneration(generation)) {
       activeGenerationRef.current = null;
     }
+  }
+
+  function cancelPendingAssistantDeltaFlush() {
+    if (pendingAssistantDeltaFrameRef.current !== null && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(pendingAssistantDeltaFrameRef.current);
+      pendingAssistantDeltaFrameRef.current = null;
+    }
+
+    if (pendingAssistantDeltaTimerRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(pendingAssistantDeltaTimerRef.current);
+      pendingAssistantDeltaTimerRef.current = null;
+    }
+  }
+
+  function flushPendingAssistantDelta(sync = false) {
+    const pending = pendingAssistantDeltaRef.current;
+
+    cancelPendingAssistantDeltaFlush();
+
+    if (!pending) {
+      return;
+    }
+
+    pendingAssistantDeltaRef.current = null;
+
+    const action = { type: 'append-assistant-delta' as const, messageId: pending.messageId, delta: pending.delta };
+
+    if (sync) {
+      flushSync(() => {
+        dispatch(action);
+      });
+      return;
+    }
+
+    dispatch(action);
+  }
+
+  function schedulePendingAssistantDeltaFlush() {
+    if (pendingAssistantDeltaFrameRef.current !== null || pendingAssistantDeltaTimerRef.current !== null) {
+      return;
+    }
+
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      pendingAssistantDeltaFrameRef.current = window.requestAnimationFrame(() => {
+        pendingAssistantDeltaFrameRef.current = null;
+        flushPendingAssistantDelta();
+      });
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      pendingAssistantDeltaTimerRef.current = window.setTimeout(() => {
+        pendingAssistantDeltaTimerRef.current = null;
+        flushPendingAssistantDelta();
+      }, 16);
+    }
+  }
+
+  function queueAssistantDelta(messageId: string, delta: string) {
+    if (!delta) {
+      return;
+    }
+
+    const pending = pendingAssistantDeltaRef.current;
+
+    if (pending && pending.messageId !== messageId) {
+      flushPendingAssistantDelta(true);
+    }
+
+    const current = pendingAssistantDeltaRef.current;
+    pendingAssistantDeltaRef.current = current
+      ? { ...current, delta: current.delta + delta }
+      : { messageId, delta };
+    schedulePendingAssistantDeltaFlush();
   }
 
   function abortActiveGeneration() {
@@ -96,6 +179,7 @@ export function useChatGeneration(
       if (isEventStream) {
         for await (const delta of readStreamingText(response)) {
           if (!isActiveGeneration(generation)) {
+            flushPendingAssistantDelta(true);
             return false;
           }
 
@@ -103,9 +187,11 @@ export function useChatGeneration(
             receivedContent = true;
           }
 
-          dispatch({ type: 'append-assistant-delta', messageId: assistantMessageId, delta });
+          queueAssistantDelta(assistantMessageId, delta);
         }
+        flushPendingAssistantDelta(true);
       } else {
+        flushPendingAssistantDelta(true);
         const text = await readNonStreamingText(response);
 
         if (!isActiveGeneration(generation)) {
@@ -117,6 +203,7 @@ export function useChatGeneration(
       }
 
       if (!isActiveGeneration(generation)) {
+        flushPendingAssistantDelta(true);
         return false;
       }
 
@@ -134,15 +221,18 @@ export function useChatGeneration(
     } catch (error) {
       if (controller.signal.aborted) {
         if (isActiveGeneration(generation)) {
+          flushPendingAssistantDelta(true);
           dispatch({ type: 'finish-generation' });
         }
         return false;
       }
 
       if (!isActiveGeneration(generation)) {
+        flushPendingAssistantDelta(true);
         return false;
       }
 
+      flushPendingAssistantDelta(true);
       const classified = classifyChatError(error);
       dispatch({ type: 'set-error', message: `${classified.title}：${classified.detail}` });
       return false;
@@ -202,11 +292,13 @@ export function useChatGeneration(
     activeGenerationRef.current = generation;
     dispatch({ type: 'send-user-message', message: userMessage, assistantMessageId, now });
 
-    return await generateAssistantResponse(generation, assistantMessageId, nextMessages);
+    void generateAssistantResponse(generation, assistantMessageId, nextMessages);
+    return true;
   }
 
   function editUserMessage(message: ChatMessage) {
     abortActiveGeneration();
+    flushPendingAssistantDelta(true);
     dispatch({ type: 'finish-generation' });
     dispatch({ type: 'truncate-after-message', messageId: message.id });
   }
@@ -241,6 +333,7 @@ export function useChatGeneration(
     };
 
     abortActiveGeneration();
+    flushPendingAssistantDelta(true);
     activeGenerationRef.current = generation;
     // Branch in place: keep the same message id, snapshot the prior answer into
     // its version list, and stream the fresh attempt into a new active slot.
@@ -255,13 +348,23 @@ export function useChatGeneration(
 
   function stopGeneration() {
     abortActiveGeneration();
+    flushPendingAssistantDelta(true);
     dispatch({ type: 'finish-generation' });
   }
 
   function loadMessages(messages: ChatMessage[]) {
     abortActiveGeneration();
+    flushPendingAssistantDelta(true);
     dispatch({ type: 'load-messages', messages });
   }
+
+  useEffect(() => {
+    return () => {
+      abortActiveGeneration();
+      cancelPendingAssistantDeltaFlush();
+      pendingAssistantDeltaRef.current = null;
+    };
+  }, []);
 
   return {
     state,

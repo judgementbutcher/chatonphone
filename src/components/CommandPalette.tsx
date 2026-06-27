@@ -1,16 +1,17 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { Search, Plus, MessageSquare, Settings, Trash2, Download } from 'lucide-react';
 import { useMemo, useState, useRef, useEffect } from 'react';
-import type { Conversation, ProviderSettings } from '../domain/types';
+import type { ConversationMessageSearchResult, ConversationSummary, ProviderSettings } from '../domain/types';
 
 interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  conversations: Conversation[];
+  conversations: ConversationSummary[];
   activeConversationId: string;
   providers: ProviderSettings[];
   activeProviderId?: string;
   selectedModel: string;
+  onSearchMessages?: (query: string, limit: number) => Promise<ConversationMessageSearchResult[]>;
   onCommand: (command: Command) => void;
 }
 
@@ -86,10 +87,12 @@ export default function CommandPalette({
   providers,
   activeProviderId,
   selectedModel,
+  onSearchMessages,
   onCommand
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [messageResults, setMessageResults] = useState<ConversationMessageSearchResult[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -156,7 +159,7 @@ export default function CommandPalette({
           id: `conv-${conv.id}`,
           label: `切换至会话：${conv.title}`,
           command: { type: 'jump-conversation', payload: conv.id },
-          keywords: [conv.title, '会话', 'conversation']
+          keywords: [conv.title, conv.model, conv.previewText, '会话', 'conversation']
         });
       });
 
@@ -175,6 +178,33 @@ export default function CommandPalette({
 
     return items;
   }, [conversations, providers, activeProviderId, mode]);
+
+  useEffect(() => {
+    if (!open || !onSearchMessages || mode === 'command' || searchQuery.length < 2) {
+      setMessageResults([]);
+      return;
+    }
+
+    let isCancelled = false;
+    const timer = window.setTimeout(() => {
+      onSearchMessages(searchQuery, 12)
+        .then((results) => {
+          if (!isCancelled) {
+            setMessageResults(results);
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) {
+            setMessageResults([]);
+          }
+        });
+    }, 220);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [open, onSearchMessages, mode, searchQuery]);
 
   const filteredCommands = useMemo(() => {
     if (!searchQuery) {
@@ -199,9 +229,6 @@ export default function CommandPalette({
       .sort((a, b) => b.score - a.score)
       .map((item) => item.cmd);
 
-    // Full-text search over message bodies. Skipped in command mode (which only
-    // surfaces actions) and for single-character queries to avoid noise. A
-    // conversation already matched by title is excluded so it shows only once.
     if (mode === 'command' || searchQuery.length < 2) {
       return matched;
     }
@@ -212,29 +239,29 @@ export default function CommandPalette({
         .map((item) => (item.command as Extract<Command, { type: 'jump-conversation' }>).payload)
     );
 
-    const needle = searchQuery.toLowerCase();
-    const messageHits: CommandItem[] = [];
-
-    for (const conv of conversations) {
-      if (titleMatchedConversationIds.has(conv.id)) {
-        continue;
+    const seenMessageConversationIds = new Set<string>();
+    const messageHits = messageResults.reduce<CommandItem[]>((items, hit) => {
+      if (
+        titleMatchedConversationIds.has(hit.conversationId) ||
+        seenMessageConversationIds.has(hit.conversationId)
+      ) {
+        return items;
       }
 
-      const hit = conv.messages.find((message) => message.text.toLowerCase().includes(needle));
+      seenMessageConversationIds.add(hit.conversationId);
+      items.push({
+        id: `msg-${hit.conversationId}-${hit.messageId}`,
+        label: hit.conversationTitle,
+        command: { type: 'jump-conversation', payload: hit.conversationId },
+        keywords: [],
+        excerpt: buildExcerpt(hit.text, searchQuery)
+      });
 
-      if (hit) {
-        messageHits.push({
-          id: `msg-${conv.id}`,
-          label: `${conv.title}`,
-          command: { type: 'jump-conversation', payload: conv.id },
-          keywords: [],
-          excerpt: buildExcerpt(hit.text, searchQuery)
-        });
-      }
-    }
+      return items;
+    }, []);
 
     return [...matched, ...messageHits];
-  }, [commands, searchQuery, mode, conversations]);
+  }, [commands, searchQuery, mode, messageResults]);
 
   useEffect(() => {
     setSelectedIndex(0);

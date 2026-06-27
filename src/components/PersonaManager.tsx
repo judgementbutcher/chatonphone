@@ -30,7 +30,7 @@ export default function PersonaManager({ personas, onChange }: Props) {
   }
 
   return (
-    <fieldset className="soft-divider-top mt-7 space-y-4 pt-5">
+    <fieldset className="soft-divider-top space-y-4 pt-5">
       <legend className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <UserCog aria-hidden="true" size={16} strokeWidth={2.2} className="text-primary" />
         角色预设
@@ -41,14 +41,14 @@ export default function PersonaManager({ personas, onChange }: Props) {
       </p>
 
       {personas.length === 0 && (
-        <p className="chip rounded-[1rem] px-3 py-2 text-sm text-muted-foreground">
+        <p className="chip rounded-lg px-3 py-2 text-sm text-muted-foreground">
           还没有角色预设，点击下方按钮新建一个。
         </p>
       )}
 
       <div className="space-y-3">
         {personas.map((persona) => (
-          <div key={persona.id} className="tech-control space-y-2 rounded-[1.1rem] p-3">
+          <div key={persona.id} className="tech-control space-y-2 rounded-lg p-3">
             <div className="flex items-center gap-2">
               <input
                 aria-label={`角色名称 ${persona.id}`}
@@ -68,7 +68,7 @@ export default function PersonaManager({ personas, onChange }: Props) {
             </div>
             <textarea
               aria-label={`角色提示词 ${persona.id}`}
-              className="tech-control min-h-[88px] w-full resize-y rounded-[1.1rem] px-3.5 py-2.5 text-sm outline-none"
+              className="tech-control min-h-[88px] w-full resize-y rounded-lg px-3.5 py-2.5 text-sm outline-none"
               value={persona.prompt}
               placeholder="例如：你是一名资深前端工程师，回答简洁、给出可运行示例。"
               onChange={(event) => updatePersona(persona.id, { prompt: event.target.value })}

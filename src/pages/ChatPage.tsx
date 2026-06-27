@@ -1,22 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Menu, Search, Settings as SettingsIcon, X } from 'lucide-react';
 import type { AppSettings, ChatMessage } from '../domain/types';
 import { useDrawers } from '../hooks/useDrawers';
 import { useConversations } from '../hooks/useConversations';
 import { useChatGeneration } from '../hooks/useChatGeneration';
 import { useSyncManager, useAutoSync, providerSyncSignature } from '../hooks/useSyncManager';
-import { resetLocalData } from '../storage/conversationRepo';
+import { resetLocalData, searchConversationMessages } from '../storage/conversationRepo';
 import { defaultSettings } from '../settings/settingsStore';
-import { fetchModelList } from '../transport/chatClient';
+import { fetchModelList, readNonStreamingText, sendChatRequest } from '../transport/chatClient';
 import Composer from '../components/Composer';
-import CommandPalette, { type Command } from '../components/CommandPalette';
+import type { Command } from '../components/CommandPalette';
 import ConversationList from '../components/ConversationList';
 import ErrorBanner from '../components/ErrorBanner';
-import MessageList from '../components/MessageList';
 import ModelSelector from '../components/ModelSelector';
 import PersonaSelector from '../components/PersonaSelector';
-import SettingsPanel from '../components/SettingsPanel';
 import { useGlobalHotkeys } from '../hooks/useGlobalHotkeys';
+
+const CommandPalette = lazy(() => import('../components/CommandPalette'));
+const messageListModulePromise = import('../components/MessageList');
+const settingsPanelModulePromise = import('../components/SettingsPanel');
+const MessageList = lazy(() => messageListModulePromise);
+const SettingsPanel = lazy(() => settingsPanelModulePromise);
 
 interface ChatPageProps {
   settings: AppSettings;
@@ -33,6 +37,8 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
   const [draftText, setDraftText] = useState('');
   const [isResettingLocalData, setIsResettingLocalData] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawers = useDrawers();
   const sync = useSyncManager();
 
@@ -74,6 +80,22 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
   const saveConversationWithMessagesRef = useRef(conversations.saveConversationWithMessages);
 
   saveConversationWithMessagesRef.current = conversations.saveConversationWithMessages;
+
+  function showFeedback(message: string) {
+    setFeedbackMessage(message);
+    if (feedbackTimerRef.current) {
+      clearTimeout(feedbackTimerRef.current);
+    }
+    feedbackTimerRef.current = setTimeout(() => {
+      setFeedbackMessage('');
+      feedbackTimerRef.current = null;
+    }, 1400);
+  }
+
+  function handleCloseDrawers() {
+    drawers.closeDrawers();
+    showFeedback('已关闭');
+  }
 
   function flushPendingSave() {
     if (debounceTimerRef.current) {
@@ -148,6 +170,9 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       flushPendingSave();
+      if (feedbackTimerRef.current) {
+        clearTimeout(feedbackTimerRef.current);
+      }
     };
   }, []);
 
@@ -155,6 +180,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     const previousProviderSignature = providerSyncSignature(settings);
     onSettingsChange(nextSettings);
     drawers.closeDrawers();
+    showFeedback('设置已保存');
 
     if (
       nextSettings.syncAccount?.accessToken.trim() &&
@@ -174,8 +200,6 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     if (!model) {
       throw new Error('模型名不能为空。');
     }
-
-    const { sendChatRequest, readNonStreamingText } = await import('../transport/chatClient');
 
     const response = await sendChatRequest({
       model,
@@ -233,16 +257,15 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     drawers.closeDrawers();
   }
 
-  function handleSelectConversation(id: string) {
+  async function handleSelectConversation(id: string) {
     if (id === conversations.activeConversation.id && chatGeneration.state.messages.length > 0) {
       drawers.closeDrawers();
       return;
     }
 
-    const selected = conversations.conversations.find((c) => c.id === id);
+    const selected = await conversations.switchToConversation(id);
     if (selected) {
       drawers.closeDrawers();
-      conversations.switchToConversation(id);
       chatGeneration.loadMessages(selected.messages);
     }
   }
@@ -285,9 +308,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     // Snapshot the prompt onto the conversation and persist immediately so the
     // binding survives reloads even before the next message is sent.
     conversations.setActiveConversationPersona(personaId, prompt);
-    if (chatGeneration.state.messages.length > 0) {
-      conversations.saveConversationWithMessages(chatGeneration.state.messages);
-    }
+    conversations.saveConversationWithMessages(chatGeneration.state.messages, { force: true });
   }
 
   function handleDismissError() {
@@ -352,6 +373,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
     link.download = `${safeTitle}.json`;
     link.click();
     URL.revokeObjectURL(url);
+    showFeedback('已导出');
   }
 
   function handlePaletteCommand(command: Command) {
@@ -376,6 +398,10 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
         break;
     }
   }
+
+  const handleSearchMessages = useCallback((query: string, limit: number) => {
+    return searchConversationMessages(query, limit);
+  }, []);
 
   function focusComposer() {
     const textarea = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息内容"]');
@@ -433,14 +459,16 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
   );
 
   const settingsPanel = (
-    <SettingsPanel
-      settings={settings}
-      onSave={handleSaveSettings}
-      onResetLocalData={handleReset}
-      onFetchModels={(nextSettings) => fetchModelList(nextSettings, fetch)}
-      onTestProvider={handleTestProvider}
-      syncStatus={sync.syncStatus}
-    />
+    <Suspense fallback={<div className="p-5 text-sm text-muted-foreground">加载设置...</div>}>
+      <SettingsPanel
+        settings={settings}
+        onSave={handleSaveSettings}
+        onResetLocalData={handleReset}
+        onFetchModels={(nextSettings) => fetchModelList(nextSettings, fetch)}
+        onTestProvider={handleTestProvider}
+        syncStatus={sync.syncStatus}
+      />
+    </Suspense>
   );
 
   return (
@@ -448,9 +476,9 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
       {(drawers.isConversationDrawerOpen || drawers.isSettingsDrawerOpen) && (
         <button
           type="button"
-          className="fixed inset-0 z-40 animate-fade-up bg-slate-950/[0.42] backdrop-blur-md lg:hidden"
+          className="fixed inset-0 z-40 animate-fade-up bg-slate-950/[0.36] backdrop-blur-sm lg:hidden"
           aria-label="关闭面板"
-          onClick={drawers.closeDrawers}
+          onClick={handleCloseDrawers}
         />
       )}
 
@@ -471,7 +499,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
             type="button"
             className="soft-action absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full"
             aria-label="关闭会话"
-            onClick={drawers.closeDrawers}
+            onClick={handleCloseDrawers}
           >
             <X aria-hidden="true" size={18} strokeWidth={2.25} />
           </button>
@@ -593,19 +621,21 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
           />
         )}
 
-        <MessageList
-          messages={chatGeneration.state.messages}
-          onEditUserMessage={handleEditUserMessage}
-          onRegenerate={chatGeneration.regenerateMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onUpdateMessageContent={handleUpdateMessageContent}
-          onQuoteMessage={handleQuoteMessage}
-          onSwitchVersion={chatGeneration.switchVersion}
-          onOpenSettings={drawers.openSettingsDrawer}
-          onUsePrompt={handleUsePrompt}
-          hasProviders={(settings.providers?.length ?? 0) > 0}
-          isGenerating={chatGeneration.state.isGenerating}
-        />
+        <Suspense fallback={<div className="min-h-0 flex-1" />}>
+          <MessageList
+            messages={chatGeneration.state.messages}
+            onEditUserMessage={handleEditUserMessage}
+            onRegenerate={chatGeneration.regenerateMessage}
+            onDeleteMessage={handleDeleteMessage}
+            onUpdateMessageContent={handleUpdateMessageContent}
+            onQuoteMessage={handleQuoteMessage}
+            onSwitchVersion={chatGeneration.switchVersion}
+            onOpenSettings={drawers.openSettingsDrawer}
+            onUsePrompt={handleUsePrompt}
+            hasProviders={(settings.providers?.length ?? 0) > 0}
+            isGenerating={chatGeneration.state.isGenerating}
+          />
+        </Suspense>
 
         <Composer
           isGenerating={chatGeneration.state.isGenerating}
@@ -643,7 +673,7 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
                 type="button"
                 className="soft-action absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full"
                 aria-label="收起设置"
-                onClick={drawers.closeDrawers}
+                onClick={handleCloseDrawers}
               >
                 <X aria-hidden="true" size={18} strokeWidth={2.25} />
               </button>
@@ -653,16 +683,31 @@ export default function ChatPage({ settings, themeName, onSettingsChange }: Chat
         </div>
       </aside>
 
-      <CommandPalette
-        open={isCommandPaletteOpen}
-        onOpenChange={setIsCommandPaletteOpen}
-        conversations={conversations.conversations}
-        activeConversationId={conversations.activeConversation.id}
-        providers={settings.providers ?? []}
-        activeProviderId={settings.selectedProviderId}
-        selectedModel={activeChatModel}
-        onCommand={handlePaletteCommand}
-      />
+      {isCommandPaletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette
+            open={isCommandPaletteOpen}
+            onOpenChange={setIsCommandPaletteOpen}
+            conversations={conversations.conversations}
+            activeConversationId={conversations.activeConversation.id}
+            providers={settings.providers ?? []}
+            activeProviderId={settings.selectedProviderId}
+            selectedModel={activeChatModel}
+            onSearchMessages={handleSearchMessages}
+            onCommand={handlePaletteCommand}
+          />
+        </Suspense>
+      )}
+
+      {feedbackMessage && (
+        <div
+          className="pointer-events-none fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-[120] -translate-x-1/2 rounded-full bg-foreground px-3.5 py-2 text-xs font-medium text-background shadow-lg"
+          role="status"
+          aria-live="polite"
+        >
+          {feedbackMessage}
+        </div>
+      )}
     </main>
   );
 }

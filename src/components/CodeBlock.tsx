@@ -10,6 +10,41 @@ interface CodeBlockProps {
 let highlighterPromise: Promise<any> | null = null;
 let highlighterInstance: any = null;
 
+const languageAliases: Record<string, string> = {
+  js: 'javascript',
+  ts: 'typescript',
+  md: 'markdown',
+  yml: 'yaml',
+  sh: 'bash'
+};
+
+const supportedLanguages = new Set([
+  'tsx',
+  'typescript',
+  'jsx',
+  'javascript',
+  'json',
+  'bash',
+  'python',
+  'go',
+  'rust',
+  'html',
+  'css',
+  'sql',
+  'yaml',
+  'markdown',
+  'xml'
+]);
+
+function normalizeLanguage(language: string | null | undefined) {
+  if (!language) {
+    return null;
+  }
+
+  const normalized = languageAliases[language.toLowerCase()] ?? language.toLowerCase();
+  return supportedLanguages.has(normalized) ? normalized : null;
+}
+
 async function getHighlighter() {
   if (highlighterInstance) {
     return highlighterInstance;
@@ -17,14 +52,66 @@ async function getHighlighter() {
 
   if (!highlighterPromise) {
     highlighterPromise = (async () => {
-      const { createHighlighter } = await import('shiki');
+      const { createHighlighterCore } = await import('shiki/core');
+      const { createJavaScriptRegexEngine } = await import('shiki/engine/javascript');
+      const [
+        githubLight,
+        githubDark,
+        tsx,
+        typescript,
+        jsx,
+        javascript,
+        json,
+        bash,
+        python,
+        go,
+        rust,
+        html,
+        css,
+        sql,
+        yaml,
+        markdown,
+        xml
+      ] = await Promise.all([
+        import('@shikijs/themes/github-light'),
+        import('@shikijs/themes/github-dark'),
+        import('@shikijs/langs/tsx'),
+        import('@shikijs/langs/typescript'),
+        import('@shikijs/langs/jsx'),
+        import('@shikijs/langs/javascript'),
+        import('@shikijs/langs/json'),
+        import('@shikijs/langs/bash'),
+        import('@shikijs/langs/python'),
+        import('@shikijs/langs/go'),
+        import('@shikijs/langs/rust'),
+        import('@shikijs/langs/html'),
+        import('@shikijs/langs/css'),
+        import('@shikijs/langs/sql'),
+        import('@shikijs/langs/yaml'),
+        import('@shikijs/langs/markdown'),
+        import('@shikijs/langs/xml')
+      ]);
 
-      const instance = await createHighlighter({
-        themes: ['github-light', 'github-dark'],
+      const instance = await createHighlighterCore({
+        themes: [githubLight.default, githubDark.default],
         langs: [
-          'tsx', 'ts', 'jsx', 'js', 'json', 'bash', 'python',
-          'go', 'rust', 'html', 'css', 'sql', 'yaml', 'markdown', 'xml'
-        ]
+          tsx.default,
+          typescript.default,
+          jsx.default,
+          javascript.default,
+          json.default,
+          bash.default,
+          python.default,
+          go.default,
+          rust.default,
+          html.default,
+          css.default,
+          sql.default,
+          yaml.default,
+          markdown.default,
+          xml.default
+        ],
+        engine: createJavaScriptRegexEngine()
       });
 
       highlighterInstance = instance;
@@ -70,13 +157,12 @@ function textFromNode(node: unknown): string {
 }
 
 export default function CodeBlock({ children, language: propLanguage, blockNumber }: CodeBlockProps) {
-  const detectedLanguage = propLanguage || extractLanguage(children);
+  const detectedLanguage = normalizeLanguage(propLanguage || extractLanguage(children));
   const codeText = textFromNode(children).replace(/\n$/, '');
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const loadAttemptedRef = useRef(false);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const lineCount = codeText.split('\n').length;
@@ -101,11 +187,13 @@ export default function CodeBlock({ children, language: propLanguage, blockNumbe
   }, []);
 
   useEffect(() => {
-    if (!detectedLanguage || loadAttemptedRef.current) {
+    if (!detectedLanguage) {
+      setHighlightedHtml(null);
       return;
     }
 
-    loadAttemptedRef.current = true;
+    let isCancelled = false;
+    setHighlightedHtml(null);
 
     (async () => {
       try {
@@ -119,12 +207,18 @@ export default function CodeBlock({ children, language: propLanguage, blockNumbe
             lang: detectedLanguage,
             theme
           });
-          setHighlightedHtml(html);
+          if (!isCancelled) {
+            setHighlightedHtml(html);
+          }
         }
       } catch (error) {
         // Fallback to plain text if highlighting fails
       }
     })();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [detectedLanguage, codeText, isDark]);
 
   useEffect(() => {

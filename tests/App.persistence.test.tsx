@@ -3,12 +3,19 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultSettings, saveSettings } from '../src/settings/settingsStore';
 
-const storageMock = vi.hoisted(() => ({
-  deleteConversation: vi.fn(),
-  listConversations: vi.fn(),
-  resetLocalData: vi.fn(),
-  saveConversation: vi.fn()
-}));
+const storageMock = vi.hoisted(() => {
+  const listConversations = vi.fn();
+
+  return {
+    deleteConversation: vi.fn(),
+    getConversation: vi.fn(),
+    listConversations,
+    listConversationSummaries: listConversations,
+    resetLocalData: vi.fn(),
+    searchConversationMessages: vi.fn(),
+    saveConversation: vi.fn()
+  };
+});
 
 vi.mock('../src/storage/conversationRepo', () => storageMock);
 
@@ -110,6 +117,7 @@ async function stopGenerationIfActive(user: ReturnType<typeof userEvent.setup>) 
 
 async function openSettings(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getAllByRole('button', { name: '打开设置' }).at(-1)!);
+  await screen.findByLabelText('API Base URL');
 }
 
 async function resetLocalDataFromSettings(user: ReturnType<typeof userEvent.setup>) {
@@ -117,7 +125,7 @@ async function resetLocalDataFromSettings(user: ReturnType<typeof userEvent.setu
   await user.click(screen.getByRole('button', { name: '清除本机数据' }));
 }
 
-function resetLocalDataFromSettingsWithFireEvent() {
+async function resetLocalDataFromSettingsWithFireEvent() {
   const settingsButton = screen.getAllByRole('button', { name: '打开设置' }).at(-1);
 
   if (!settingsButton) {
@@ -125,16 +133,20 @@ function resetLocalDataFromSettingsWithFireEvent() {
   }
 
   fireEvent.click(settingsButton);
-  fireEvent.click(screen.getByRole('button', { name: '清除本机数据' }));
+  fireEvent.click(await screen.findByRole('button', { name: '清除本机数据' }));
 }
 
 describe('App persistence', () => {
   beforeEach(() => {
     storageMock.deleteConversation.mockReset();
+    storageMock.getConversation.mockReset();
     storageMock.listConversations.mockReset();
+    storageMock.searchConversationMessages.mockReset();
     storageMock.resetLocalData.mockReset();
     storageMock.saveConversation.mockReset();
     storageMock.listConversations.mockResolvedValue([]);
+    storageMock.getConversation.mockResolvedValue(undefined);
+    storageMock.searchConversationMessages.mockResolvedValue([]);
     storageMock.resetLocalData.mockResolvedValue(undefined);
     storageMock.deleteConversation.mockResolvedValue(undefined);
     localStorage.clear();
@@ -163,6 +175,41 @@ describe('App persistence', () => {
       title: '请帮我总结 这段文字 并列出重点'
     });
     expect(await within(screen.getByRole('banner')).findByText('请帮我总结 这段文字 并列出重点')).toBeInTheDocument();
+  });
+
+  it('persists a persona selection before the first message is sent', async () => {
+    saveSettings({
+      ...defaultSettings,
+      personas: [
+        {
+          id: 'persona-reviewer',
+          name: 'Reviewer',
+          prompt: 'Be strict.'
+        }
+      ],
+      syncAccount: {
+        endpoint: '',
+        accountId: 'desktop-user',
+        accessToken: 'saved-token',
+        autoSync: false
+      }
+    });
+
+    const { default: App } = await import('../src/App');
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getAllByRole('button', { name: '选择角色' }).at(-1)!);
+    await user.click(await screen.findByText('Reviewer'));
+
+    await waitFor(() => {
+      expect(storageMock.saveConversation).toHaveBeenCalledWith(expect.objectContaining({
+        personaId: 'persona-reviewer',
+        systemPrompt: 'Be strict.',
+        messages: []
+      }));
+    });
   });
 
   it('keeps an existing non-default conversation title when saving messages', async () => {
@@ -422,7 +469,7 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalled();
     });
 
-    resetLocalDataFromSettingsWithFireEvent();
+    await resetLocalDataFromSettingsWithFireEvent();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('清除本机数据失败，请重试。');
 
@@ -1090,7 +1137,7 @@ describe('App persistence', () => {
       expect(storageMock.saveConversation).toHaveBeenCalled();
     });
 
-    resetLocalDataFromSettingsWithFireEvent();
+    await resetLocalDataFromSettingsWithFireEvent();
 
     await waitFor(() => {
       expect(storageMock.resetLocalData).toHaveBeenCalled();

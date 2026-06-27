@@ -213,7 +213,6 @@ function normalizeSettings(settings: AppSettings): AppSettings {
   const activeProvider = providers.find((provider) => provider.id === settings.selectedProviderId) ?? providers[0] ?? defaultProvider;
   const selectedModel =
     nonEmptyString(settings.selectedModel) ??
-    nonEmptyString(settings.model) ??
     nonEmptyString(activeProvider.models[0]) ??
     defaultSettings.selectedModel!;
   const chatModel =
@@ -257,13 +256,12 @@ function sanitizeSettings(value: unknown): AppSettings {
   const activeProvider = providers.find((provider) => provider.id === selectedProviderId) ?? providers[0] ?? defaultProvider;
   const selectedModel =
     nonEmptyString(value.selectedModel) ??
-    nonEmptyString(value.model) ??
     nonEmptyString(activeProvider.models[0]) ??
     defaultSettings.model;
   const chatModel =
     nonEmptyString(value.chatModel) ??
-    selectedModel ??
     nonEmptyString(value.model) ??
+    selectedModel ??
     '';
 
   return normalizeSettings({

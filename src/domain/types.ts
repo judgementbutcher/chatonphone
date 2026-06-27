@@ -99,6 +99,25 @@ export interface Conversation {
   systemPrompt?: string;
 }
 
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  model: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
+  previewText: string;
+  personaId?: string;
+}
+
+export interface ConversationMessageSearchResult {
+  conversationId: string;
+  conversationTitle: string;
+  messageId: string;
+  text: string;
+  updatedAt: number;
+}
+
 export interface OpenAIChatRequest {
   model: string;
   messages: OpenAIMessage[];

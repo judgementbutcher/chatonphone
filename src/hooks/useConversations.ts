@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
-import type { AppSettings, ChatMessage, Conversation } from '../domain/types';
-import { deleteConversation, listConversations, saveConversation } from '../storage/conversationRepo';
+import type { AppSettings, ChatMessage, Conversation, ConversationSummary } from '../domain/types';
+import { deleteConversation, getConversation, listConversationSummaries, saveConversation } from '../storage/conversationRepo';
+import { toConversationSummary } from '../storage/db';
 
 const DEFAULT_CONVERSATION_TITLE = '新会话';
 const FILE_CONVERSATION_TITLE = '文件对话';
@@ -57,17 +58,17 @@ function newConversation(model: string): Conversation {
 }
 
 export interface UseConversationsReturn {
-  conversations: Conversation[];
+  conversations: ConversationSummary[];
   activeConversation: Conversation;
   persistenceVersion: number;
   deletedConversationIds: Set<string>;
   createNewConversation: () => void;
-  switchToConversation: (id: string) => void;
+  switchToConversation: (id: string) => Promise<Conversation | undefined>;
   deleteConversationById: (id: string) => boolean;
   renameConversation: (id: string, title: string) => Promise<void>;
   updateActiveConversation: (conversation: Conversation) => void;
   setActiveConversationPersona: (personaId: string | undefined, systemPrompt: string | undefined) => void;
-  saveConversationWithMessages: (messages: ChatMessage[]) => void;
+  saveConversationWithMessages: (messages: ChatMessage[], options?: { force?: boolean }) => void;
   refreshConversations: (expectedPersistenceVersion?: number, preferStoredValues?: boolean) => Promise<void>;
   clearConversationList: () => void;
   startLocalReset: () => void;
@@ -77,7 +78,7 @@ export interface UseConversationsReturn {
 }
 
 export function useConversations(settings: AppSettings, onError: (message: string) => void): UseConversationsReturn {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeConversation, setActiveConversation] = useState<Conversation>(() => newConversation(settings.model));
 
   const activeConversationIdRef = useRef(activeConversation.id);
@@ -91,6 +92,7 @@ export function useConversations(settings: AppSettings, onError: (message: strin
 
   function updateActiveConversation(conversation: Conversation) {
     activeConversationIdRef.current = conversation.id;
+    latestConversationSnapshotsRef.current.set(conversation.id, conversation);
     setActiveConversation(conversation);
   }
 
@@ -151,31 +153,39 @@ export function useConversations(settings: AppSettings, onError: (message: strin
   }
 
   async function refreshConversations(expectedPersistenceVersion = persistenceVersionRef.current, preferStoredValues = false) {
-    const storedConversations = await listConversations();
+    const storedSummaries = await listConversationSummaries();
 
     if (isResettingRef.current || expectedPersistenceVersion !== persistenceVersionRef.current) {
       return;
     }
 
-    const nextConversations = storedConversations.reduce<Conversation[]>((mergedConversations, storedConversation) => {
-      if (deletedConversationIdsRef.current.has(storedConversation.id)) {
-        latestConversationSnapshotsRef.current.delete(storedConversation.id);
-        return mergedConversations;
+    const nextSummaries = storedSummaries.reduce<ConversationSummary[]>((mergedSummaries, storedSummary) => {
+      if (deletedConversationIdsRef.current.has(storedSummary.id)) {
+        latestConversationSnapshotsRef.current.delete(storedSummary.id);
+        return mergedSummaries;
       }
 
-      const localConversation = preferStoredValues ? undefined : latestConversationSnapshotsRef.current.get(storedConversation.id);
-      const hasQueuedSave = conversationSaveChainsRef.current.has(storedConversation.id);
-      const conversation =
-        localConversation && (hasQueuedSave || localConversation.updatedAt >= storedConversation.updatedAt)
-          ? localConversation
-          : storedConversation;
+      const localConversation = preferStoredValues ? undefined : latestConversationSnapshotsRef.current.get(storedSummary.id);
+      const storedConversation = 'messages' in storedSummary ? storedSummary as Conversation : undefined;
+      const hasQueuedSave = conversationSaveChainsRef.current.has(storedSummary.id);
+      const summary =
+        localConversation && (hasQueuedSave || localConversation.updatedAt >= storedSummary.updatedAt)
+          ? toConversationSummary(localConversation)
+          : storedSummary;
 
-      latestConversationSnapshotsRef.current.set(conversation.id, conversation);
-      mergedConversations.push(conversation);
-      return mergedConversations;
+      if (localConversation && summary !== storedSummary) {
+        latestConversationSnapshotsRef.current.set(localConversation.id, localConversation);
+      } else if (storedConversation) {
+        latestConversationSnapshotsRef.current.set(storedConversation.id, storedConversation);
+      } else if (preferStoredValues) {
+        latestConversationSnapshotsRef.current.delete(storedSummary.id);
+      }
+
+      mergedSummaries.push(summary);
+      return mergedSummaries;
     }, []);
 
-    setConversations(nextConversations.sort((left, right) => right.updatedAt - left.updatedAt));
+    setConversations(nextSummaries.sort((left, right) => right.updatedAt - left.updatedAt));
   }
 
   async function cleanupInvalidatedConversation(id: string) {
@@ -212,15 +222,30 @@ export function useConversations(settings: AppSettings, onError: (message: strin
     finishResetAttempt();
   }
 
-  function switchToConversation(id: string) {
+  async function switchToConversation(id: string) {
     if (deletedConversationIdsRef.current.has(id)) {
-      return;
+      return undefined;
     }
 
-    const selected = conversations.find((conversation) => conversation.id === id);
-    if (selected && selected.id !== activeConversationIdRef.current) {
+    const selectedSummary = conversations.find((conversation) => conversation.id === id);
+
+    if (!selectedSummary) {
+      return undefined;
+    }
+
+    const selected = latestConversationSnapshotsRef.current.get(id)
+      ?? ('messages' in selectedSummary ? selectedSummary as Conversation : await getConversation(id));
+
+    if (!selected || deletedConversationIdsRef.current.has(id)) {
+      await cleanupInvalidatedConversation(id);
+      return undefined;
+    }
+
+    if (selected.id !== activeConversationIdRef.current) {
       updateActiveConversation(selected);
     }
+
+    return selected;
   }
 
   function deleteConversationById(id: string) {
@@ -265,7 +290,14 @@ export function useConversations(settings: AppSettings, onError: (message: strin
     }
 
     const persistenceVersion = persistenceVersionRef.current;
-    const latestConversation = latestConversationSnapshotsRef.current.get(id) ?? target;
+    const latestConversation = latestConversationSnapshotsRef.current.get(id)
+      ?? ('messages' in target ? target as Conversation : await getConversation(id));
+
+    if (!latestConversation) {
+      await cleanupInvalidatedConversation(id);
+      return;
+    }
+
     const renamed = {
       ...latestConversation,
       title,
@@ -273,7 +305,9 @@ export function useConversations(settings: AppSettings, onError: (message: strin
     };
 
     latestConversationSnapshotsRef.current.set(id, renamed);
-    setConversations((current) => current.map((conversation) => (conversation.id === id ? renamed : conversation)));
+    setConversations((current) => current.map((conversation) => (
+      conversation.id === id ? toConversationSummary(renamed) : conversation
+    )));
 
     try {
       await enqueueConversationSave(renamed);
@@ -300,7 +334,7 @@ export function useConversations(settings: AppSettings, onError: (message: strin
     await refreshConversations(persistenceVersion);
   }
 
-  function saveConversationWithMessages(messages: ChatMessage[]) {
+  function saveConversationWithMessages(messages: ChatMessage[], options: { force?: boolean } = {}) {
     const latestConversation = latestConversationSnapshotsRef.current.get(activeConversation.id) ?? activeConversation;
     const conversation = withDerivedConversationTitle({
       ...activeConversation,
@@ -310,7 +344,7 @@ export function useConversations(settings: AppSettings, onError: (message: strin
       updatedAt: Date.now()
     });
 
-    if (messages.length > 0) {
+    if (options.force || messages.length > 0) {
       const persistenceVersion = persistenceVersionRef.current;
 
       if (deletedConversationIdsRef.current.has(conversation.id)) {
@@ -318,6 +352,16 @@ export function useConversations(settings: AppSettings, onError: (message: strin
       }
 
       latestConversationSnapshotsRef.current.set(conversation.id, conversation);
+      setConversations((current) => {
+        const summary = toConversationSummary(conversation);
+        const exists = current.some((storedSummary) => storedSummary.id === conversation.id);
+        const next = exists
+          ? current.map((storedSummary) => (storedSummary.id === conversation.id ? summary : storedSummary))
+          : [summary, ...current];
+
+        return next.sort((left, right) => right.updatedAt - left.updatedAt);
+      });
+
       if (conversation.title !== activeConversation.title) {
         setActiveConversation((current) => (
           current.id === conversation.id && current.title === DEFAULT_CONVERSATION_TITLE
@@ -368,7 +412,7 @@ export function useConversations(settings: AppSettings, onError: (message: strin
     startLocalReset,
     completeLocalReset,
     cancelLocalReset,
-    setActiveConversation,
+    setActiveConversation: updateActiveConversation,
     setActiveConversationPersona
   };
 }

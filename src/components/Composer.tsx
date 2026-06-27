@@ -230,7 +230,7 @@ export default function Composer({ isGenerating, disabled = false, draftText, on
 
   return (
     <form
-      className="soft-divider-top relative bg-background/86 px-3 py-3 backdrop-blur-xl sm:px-5"
+      className="soft-divider-top relative bg-background/86 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-lg sm:px-5"
       data-dragover={isDragOver ? 'true' : undefined}
       onDragEnter={(event) => {
         if (event.dataTransfer?.types?.includes('Files')) {
